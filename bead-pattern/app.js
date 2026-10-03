@@ -36,11 +36,24 @@ let showGrid = true, showSym = false;
 let undoStack = [], redoStack = [];
 let symMap = {};          /* 调色板下标 -> 符号 */
 let painting = false, lastCell = null, strokeSnapshot = null;
-let imgState = null;      /* 弹窗里的图片状态 */
+let lastPos = null;         /* 十字定位：最后操作的格子 */
+let rulerPx = 0;
+let renderQueued = false;
+let imgState = null;        /* 弹窗里的图片状态 */
 let saveTimer = null;
 
 const board = $("board");
 const ctx = board.getContext("2d");
+
+function queueRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
+function setPos(c) {
+  lastPos = c;
+  $("posInfo").textContent = c ? `第 ${c.y + 1} 行 · 第 ${c.x + 1} 列` : "";
+}
 
 /* ---------- 工具 ---------- */
 function toast(text) {
@@ -112,14 +125,38 @@ function applyZoom() {
 }
 function render() {
   const dpr = window.devicePixelRatio || 1;
+  rulerPx = cellPx >= 5 ? 22 : 0;
   const w = W * cellPx, h = H * cellPx;
-  board.style.width = w + "px";
-  board.style.height = h + "px";
-  board.width = Math.round(w * dpr);
-  board.height = Math.round(h * dpr);
+  board.style.width = (w + rulerPx) + "px";
+  board.style.height = (h + rulerPx) + "px";
+  board.width = Math.round((w + rulerPx) * dpr);
+  board.height = Math.round((h + rulerPx) * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, w + rulerPx, h + rulerPx);
+
+  /* 标尺 */
+  if (rulerPx) {
+    ctx.fillStyle = "#e9f0ea";
+    ctx.fillRect(0, 0, w + rulerPx, rulerPx);
+    ctx.fillRect(0, 0, rulerPx, h + rulerPx);
+    ctx.fillStyle = "#7d9384";
+    ctx.font = `${Math.min(11, Math.max(8, Math.floor(cellPx * 0.6)))}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const rstep = cellPx < 11 ? 5 : 1;
+    for (let x = 0; x < W; x += rstep) ctx.fillText(x, rulerPx + x * cellPx + cellPx / 2, rulerPx / 2 + 1);
+    for (let y = 0; y < H; y += rstep) ctx.fillText(y, rulerPx / 2, rulerPx + y * cellPx + cellPx / 2);
+  }
+  ctx.save();
+  ctx.translate(rulerPx, rulerPx);
+
+  /* 十字定位高亮 */
+  if (lastPos) {
+    ctx.fillStyle = "rgba(95, 149, 120, 0.20)";
+    ctx.fillRect(0, lastPos.y * cellPx, W * cellPx, cellPx);
+    ctx.fillRect(lastPos.x * cellPx, 0, cellPx, H * cellPx);
+  }
 
   /* 豆子 */
   for (let y = 0; y < H; y++) {
@@ -155,6 +192,13 @@ function render() {
       }
     }
   }
+  /* 定位框 */
+  if (lastPos) {
+    ctx.strokeStyle = "#3f7a5c";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(lastPos.x * cellPx + 1, lastPos.y * cellPx + 1, cellPx - 2, cellPx - 2);
+  }
+  ctx.restore();
 }
 function drawCell(x, y) {
   const v = grid[y * W + x];
@@ -164,6 +208,12 @@ function drawCell(x, y) {
     ctx.fillStyle = PALETTE[v].h;
   }
   ctx.fillRect(x * cellPx, y * cellPx, cellPx, cellPx);
+}
+/* 在渲染循环之外直接重画某个格子（坐标系含标尺偏移） */
+function paintCellNow(x, y) {
+  const v = grid[y * W + x];
+  ctx.fillStyle = v === EMPTY ? "#ffffff" : PALETTE[v].h;
+  ctx.fillRect(rulerPx + x * cellPx, rulerPx + y * cellPx, cellPx, cellPx);
 }
 
 /* ---------- 撤销 / 重做（连同画布尺寸一起存） ---------- */
@@ -194,8 +244,8 @@ function redo() {
 /* ---------- 绘制交互 ---------- */
 function cellFromEvent(e) {
   const r = board.getBoundingClientRect();
-  const x = Math.floor(((e.clientX - r.left) / r.width) * W);
-  const y = Math.floor(((e.clientY - r.top) / r.height) * H);
+  const x = Math.floor((e.clientX - r.left - rulerPx) / cellPx);
+  const y = Math.floor((e.clientY - r.top - rulerPx) / cellPx);
   if (x < 0 || y < 0 || x >= W || y >= H) return null;
   return { x, y };
 }
@@ -204,7 +254,7 @@ function putCell(x, y) {
   const v = tool === "eraser" ? EMPTY : colorIdx;
   if (grid[idx] === v) return false;
   grid[idx] = v;
-  drawCell(x, y);
+  paintCellNow(x, y);
   return true;
 }
 function floodFill(sx, sy) {
@@ -217,7 +267,7 @@ function floodFill(sx, sy) {
     const i = y * W + x;
     if (grid[i] !== target) continue;
     grid[i] = v;
-    drawCell(x, y);
+    paintCellNow(x, y);
     if (x > 0) q.push([x - 1, y]);
     if (x < W - 1) q.push([x + 1, y]);
     if (y > 0) q.push([x, y - 1]);
@@ -229,6 +279,7 @@ board.addEventListener("pointerdown", (e) => {
   const c = cellFromEvent(e);
   if (!c) return;
   try { board.setPointerCapture(e.pointerId); } catch {}
+  setPos(c);
   painting = true;
   if (tool === "fill") {
     pushUndo();
@@ -241,17 +292,20 @@ board.addEventListener("pointerdown", (e) => {
     const v = grid[c.y * W + c.x];
     if (v !== EMPTY) { colorIdx = v; refreshColorUI(); toast(`取色：${PALETTE[v].n}`); }
     painting = false;
+    render();
     return;
   }
   strokeSnapshot = grid.slice();
   lastCell = c;
   if (putCell(c.x, c.y)) { /* 首格已画 */ }
+  queueRender();
 });
 board.addEventListener("pointermove", (e) => {
   if (!painting) return;
   const c = cellFromEvent(e);
   if (!c || (lastCell && c.x === lastCell.x && c.y === lastCell.y)) return;
   lastCell = c;
+  setPos(c);
   putCell(c.x, c.y);
 });
 function endStroke() {
@@ -800,13 +854,23 @@ $("btnExport").addEventListener("click", () => {
   const cell = big ? 22 : 40;
   const margin = big ? 20 : 28;
   const dpr = big ? 1 : 2;
-  const w = W * cell + margin, h = H * cell + margin;
+
+  /* 图例区高度 */
+  const counts = beadCounts();
+  const entries = Object.keys(counts).map(Number).sort((a, b) => a - b);
+  const total = entries.reduce((a, i) => a + counts[i], 0);
+  const perRow = 3, rowH = big ? 17 : 21;
+  const legendRows = Math.ceil(entries.length / perRow);
+  const legendH = entries.length ? 34 + legendRows * rowH : 0;
+
+  const w = W * cell + margin, h = H * cell + margin + legendH;
   const c = document.createElement("canvas");
   c.width = w * dpr; c.height = h * dpr;
   const x2 = c.getContext("2d");
   x2.setTransform(dpr, 0, 0, dpr, 0, 0);
   x2.fillStyle = "#fff";
   x2.fillRect(0, 0, w, h);
+  x2.save();
   x2.translate(margin, margin);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -823,13 +887,14 @@ $("btnExport").addEventListener("click", () => {
   x2.stroke();
   x2.strokeStyle = "rgba(60,90,70,0.55)";
   x2.strokeRect(0.5, 0.5, W * cell, H * cell);
-  /* 标尺 */
+  /* 标尺：大图每 5 格，小图每格 */
+  const rstep = big ? 5 : (W <= 48 ? 1 : 5);
   x2.fillStyle = "#8aa393";
-  x2.font = "11px sans-serif";
+  x2.font = `${big ? 10 : 11}px sans-serif`;
   x2.textAlign = "center"; x2.textBaseline = "middle";
-  for (let x = 0; x < W; x += 5) x2.fillText(x, x * cell + cell / 2, -14);
+  for (let x = 0; x < W; x += rstep) x2.fillText(x, x * cell + cell / 2, -margin / 2);
   x2.textAlign = "right";
-  for (let y = 0; y < H; y += 5) x2.fillText(y, -8, y * cell + cell / 2);
+  for (let y = 0; y < H; y += rstep) x2.fillText(y, -6, y * cell + cell / 2);
   /* 符号 */
   if (showSym) {
     x2.textAlign = "center";
@@ -842,6 +907,39 @@ $("btnExport").addEventListener("click", () => {
         x2.fillText(symMap[v] || "?", x * cell + cell / 2, y * cell + cell / 2 + 1);
       }
     }
+  }
+  x2.restore();
+
+  /* 图例 */
+  if (entries.length) {
+    const colW = (W * cell) / perRow;
+    let ly = margin + H * cell + 6;
+    x2.fillStyle = "#33463a";
+    x2.font = `600 ${big ? 11 : 13}px sans-serif`;
+    x2.textAlign = "left"; x2.textBaseline = "middle";
+    x2.fillText(`${W}×${H} · 共 ${total} 颗 · ${entries.length} 种颜色`, margin, ly + 10);
+    ly += 30;
+    entries.forEach((idx, i) => {
+      const ex = margin + (i % perRow) * colW;
+      const ey = ly + Math.floor(i / perRow) * rowH;
+      x2.fillStyle = PALETTE[idx].h;
+      x2.fillRect(ex, ey, 16, 16);
+      x2.strokeStyle = "rgba(0,0,0,0.35)";
+      x2.lineWidth = 1;
+      x2.strokeRect(ex + 0.5, ey + 0.5, 15, 15);
+      if (showSym && symMap[idx]) {
+        x2.fillStyle = luminance(PALETTE[idx].h) > 0.6 ? "#333" : "#fff";
+        x2.font = `700 10px sans-serif`;
+        x2.textAlign = "center";
+        x2.fillText(symMap[idx], ex + 8, ey + 9);
+      }
+      x2.fillStyle = "#33463a";
+      x2.font = `${big ? 10 : 12}px sans-serif`;
+      x2.textAlign = "left";
+      x2.fillText(`${PALETTE[idx].n} ${PALETTE[idx].h.toUpperCase()}`, ex + 21, ey + 9);
+      x2.textAlign = "right";
+      x2.fillText(`×${counts[idx]}`, ex + colW - 10, ey + 9);
+    });
   }
   c.toBlob((blob) => {
     const a = document.createElement("a");
