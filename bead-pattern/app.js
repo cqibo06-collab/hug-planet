@@ -32,7 +32,7 @@ let tool = "pencil";
 let colorIdx = 34; /* 默认绿色 */
 let cellPx = 16;
 let zoomStep = 0;
-let showGrid = true, showSym = false;
+let showGrid = true, showSym = false, showCoord = false;
 let undoStack = [], redoStack = [];
 let symMap = {};          /* 调色板下标 -> 符号 */
 let painting = false, lastCell = null, strokeSnapshot = null;
@@ -178,17 +178,19 @@ function render() {
     for (let y = 10; y < H; y += 10) { ctx.moveTo(0, y * cellPx + 0.5); ctx.lineTo(w, y * cellPx + 0.5); }
     ctx.stroke();
   }
-  /* 符号 */
-  if (showSym && cellPx >= 12) {
+  /* 符号 / 坐标标号 */
+  if ((showSym || showCoord) && cellPx >= 12) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `700 ${Math.floor(cellPx * 0.55)}px sans-serif`;
+    const showFull = showCoord && cellPx >= 24;
+    ctx.font = `700 ${Math.floor(cellPx * (showFull ? 0.28 : 0.55))}px sans-serif`;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const v = grid[y * W + x];
         if (v === EMPTY) continue;
         ctx.fillStyle = luminance(PALETTE[v].h) > 0.6 ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.9)";
-        ctx.fillText(symMap[v] || "?", x * cellPx + cellPx / 2, y * cellPx + cellPx / 2 + 1);
+        const label = showFull ? `${symMap[v] || "?"}${y + 1}-${x + 1}` : (symMap[v] || "?");
+        ctx.fillText(label, x * cellPx + cellPx / 2, y * cellPx + cellPx / 2 + 1);
       }
     }
   }
@@ -805,7 +807,8 @@ $("sizeSel").addEventListener("change", (e) => {
 $("zoomIn").addEventListener("click", () => { zoomStep++; applyZoom(); });
 $("zoomOut").addEventListener("click", () => { zoomStep--; applyZoom(); });
 $("tgGrid").addEventListener("change", (e) => { showGrid = e.target.checked; render(); });
-$("tgSym").addEventListener("change", (e) => { showSym = e.target.checked; render(); });
+$("tgSym").addEventListener("change", (e) => { showSym = e.target.checked; render(); saveSoon(); });
+$("tgCoord").addEventListener("change", (e) => { showCoord = e.target.checked; render(); saveSoon(); });
 
 /* ---------- 工具切换 / 顶栏 ---------- */
 document.querySelectorAll(".tool").forEach((b) => {
@@ -895,16 +898,18 @@ $("btnExport").addEventListener("click", () => {
   for (let x = 0; x < W; x += rstep) x2.fillText(x, x * cell + cell / 2, -margin / 2);
   x2.textAlign = "right";
   for (let y = 0; y < H; y += rstep) x2.fillText(y, -6, y * cell + cell / 2);
-  /* 符号 */
-  if (showSym) {
+  /* 符号 / 坐标标号 */
+  if (showSym || showCoord) {
+    const showFull = showCoord && cell >= 30;
     x2.textAlign = "center";
-    x2.font = `700 ${Math.floor(cell * 0.5)}px sans-serif`;
+    x2.font = `700 ${Math.floor(cell * (showFull ? 0.26 : 0.5))}px sans-serif`;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const v = grid[y * W + x];
         if (v === EMPTY) continue;
         x2.fillStyle = luminance(PALETTE[v].h) > 0.6 ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.92)";
-        x2.fillText(symMap[v] || "?", x * cell + cell / 2, y * cell + cell / 2 + 1);
+        const label = showFull ? `${symMap[v] || "?"}${y + 1}-${x + 1}` : (symMap[v] || "?");
+        x2.fillText(label, x * cell + cell / 2, y * cell + cell / 2 + 1);
       }
     }
   }
@@ -993,7 +998,7 @@ function saveSoon() {
     try {
       localStorage.setItem("bp_project", JSON.stringify({
         w: W, h: H, grid: Array.from(grid), symbols: symMap,
-        showGrid, showSym,
+        showGrid, showSym, showCoord,
       }));
     } catch {}
   }, 400);
@@ -1009,6 +1014,7 @@ function loadSaved() {
     $("sizeSel").value = String(W);
     showGrid = d.showGrid !== false; $("tgGrid").checked = showGrid;
     showSym = !!d.showSym; $("tgSym").checked = showSym;
+    showCoord = !!d.showCoord; $("tgCoord").checked = showCoord;
   } catch {}
 }
 
