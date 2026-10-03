@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="拼豆图纸生成器 —— 手绘像素画，或把照片一键变成拼豆图纸，自动限色、统计用量。">
+  <meta name="theme-color" content="#7fb795">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="拼豆图纸">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>拼豆图纸生成器 · 像素画工具</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>🧩 拼豆图纸生成器</h1>
+    <div class="top-actions">
+      <button id="btnUndo" class="tbtn" title="撤销">↩️</button>
+      <button id="btnRedo" class="tbtn" title="重做">↪️</button>
+      <button id="btnImage" class="tbtn accent">🖼️ 图转图纸</button>
+      <div class="menu-wrap">
+        <button id="btnMenu" class="tbtn">⋯</button>
+        <div id="menu" class="menu" hidden>
+          <button id="btnPreview">✨ 成品预览（烫后效果）</button>
+          <button id="btnStats">📊 用量统计</button>
+          <button id="btnExport">🖼️ 导出图纸 PNG</button>
+          <button id="btnSave">💾 保存工程文件</button>
+          <button id="btnLoad">📂 导入工程文件</button>
+          <button id="btnClear" class="danger">🗑️ 清空画布</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="canvasWrap">
+    <canvas id="board"></canvas>
+  </main>
+
+  <div class="statusbar">
+    <span id="statInfo">29×29</span>
+    <span class="grow"></span>
+    <button id="zoomOut" class="mini">−</button>
+    <span id="zoomLabel">适合</span>
+    <button id="zoomIn" class="mini">＋</button>
+  </div>
+
+  <section class="dock">
+    <div class="tools">
+      <button class="tool active" data-tool="pencil" title="画笔">🖌️<span>画笔</span></button>
+      <button class="tool" data-tool="eraser" title="橡皮">🧽<span>橡皮</span></button>
+      <button class="tool" data-tool="fill" title="填充">🪣<span>填充</span></button>
+      <button class="tool" data-tool="picker" title="取色">💧<span>取色</span></button>
+      <div class="cur-color" id="curColor" title="当前颜色"></div>
+    </div>
+    <div class="palette" id="palette"></div>
+    <div class="toggles">
+      <label><input type="checkbox" id="tgGrid" checked> 网格线</label>
+      <label><input type="checkbox" id="tgSym"> 符号（黑白打印用）</label>
+      <span class="grow"></span>
+      <select id="sizeSel" title="画布尺寸">
+        <option value="16">16×16</option>
+        <option value="29" selected>29×29（标准大板）</option>
+        <option value="40">40×40</option>
+        <option value="50">50×50</option>
+        <option value="58">58×58</option>
+        <option value="72">72×72</option>
+        <option value="100">100×100</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- 图片转图纸弹窗 -->
+  <div class="overlay" id="imgModal" hidden>
+    <div class="modal">
+      <h2>🖼️ 图片转拼豆图纸</h2>
+      <p class="hint">选一张图片，自动缩小、限色，变成可拼的图纸。<br>细节多的照片（人物/风景）建议选 <b>40×40</b> 或更大的板子，会更清晰。</p>
+      <div class="drop" id="dropZone">点击选择图片<br><small>或把图片拖到这里</small></div>
+      <div class="preview-wrap" id="previewWrap" hidden>
+        <canvas id="previewCanvas"></canvas>
+        <p class="hint" id="previewHint"></p>
+      </div>
+      <div class="field">
+        <label>对比不同格子数（点一个直接选用）</label>
+        <div class="cmp-strip" id="cmpStrip"></div>
+      </div>
+      <div class="field">
+        <label>目标板子尺寸</label>
+        <select id="imgSize">
+          <option value="16">16×16</option>
+          <option value="24">24×24</option>
+          <option value="29" selected>29×29（标准大板）</option>
+          <option value="40">40×40</option>
+          <option value="50">50×50</option>
+          <option value="58">58×58</option>
+          <option value="72">72×72（两块板拼）</option>
+          <option value="100">100×100（大工程）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>最多用几种颜色：<b id="colorNLabel">18</b> 种</label>
+        <input type="range" id="colorN" min="4" max="48" value="18">
+      </div>
+      <div class="field">
+        <label>画质增强</label>
+        <div class="seg wrap">
+          <label><input type="checkbox" id="enSharp" checked> 锐化细节</label>
+          <label><input type="checkbox" id="enContrast"> 自动对比度（照片发灰时用）</label>
+          <label><input type="checkbox" id="enSat" checked> 提高鲜艳度</label>
+          <label><input type="checkbox" id="enDither"> 抖动过渡（渐变更细腻）</label>
+          <label><input type="checkbox" id="enRemoveBg"> 自动去背景（只拼主体）</label>
+          <label><input type="checkbox" id="enOutline"> 深色描边（卡通图用）</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>放入方式</label>
+        <div class="seg">
+          <label><input type="radio" name="fit" value="contain" checked> 完整放入（留空）</label>
+          <label><input type="radio" name="fit" value="cover"> 裁剪铺满</label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="imgCancel">取消</button>
+        <button class="btn primary" id="imgGo" disabled>生成图纸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 用量统计弹窗 -->
+  <div class="overlay" id="statsModal" hidden>
+    <div class="modal">
+      <h2>📊 用量统计</h2>
+      <p class="hint" id="statsSummary"></p>
+      <div class="stats-list" id="statsList"></div>
+      <div class="btn-row">
+        <button class="btn ghost" id="statsClose">关闭</button>
+        <button class="btn primary" id="statsCopy">复制清单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成品预览弹窗 -->
+  <div class="overlay" id="finModal" hidden>
+    <div class="modal">
+      <h2>✨ 成品预览（烫后大致效果）</h2>
+      <p class="hint">拖动滑块模拟烫的程度。预览仅供参考：实际成品还取决于温度、豆子品牌、垫纸和按压方式。</p>
+      <div class="fin-stage"><canvas id="finCanvas"></canvas></div>
+      <div class="field">
+        <label>烫的程度：<b id="finLabel">半融合</b></label>
+        <input type="range" id="finSlider" min="0" max="100" value="55">
+        <div class="fin-scale"><span>生豆</span><span>半融合</span><span>烫透</span></div>
+      </div>
+      <div class="btn-row"><button class="btn primary" id="finClose">关闭</button></div>
+    </div>
+  </div>
+
+  <input type="file" id="fileImg" accept="image/*" hidden>
+  <input type="file" id="fileProj" accept=".json,application/json" hidden>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
