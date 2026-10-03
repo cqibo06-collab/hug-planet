@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="抱抱星球 —— 你的小小避风港，难过的时候来这里休息一下。">
+  <meta name="theme-color" content="#9ccba4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="抱抱星球">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>抱抱星球 · 你的小小避风港</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-decor" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <div class="leaves">
+      <span style="left: 8%; font-size: 22px; animation-duration: 26s; animation-delay: -4s;">🍃</span>
+      <span style="left: 28%; font-size: 16px; animation-duration: 34s; animation-delay: -18s;">🍃</span>
+      <span style="left: 55%; font-size: 19px; animation-duration: 30s; animation-delay: -10s;">🌿</span>
+      <span style="left: 78%; font-size: 17px; animation-duration: 38s; animation-delay: -25s;">🍃</span>
+    </div>
+    <div class="stars"></div>
+  </div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="greet">
+        <h1 id="greetTitle">你好呀</h1>
+        <p id="greetSub">今天也请多多关照自己</p>
+      </div>
+      <button id="themeBtn" class="icon-btn" aria-label="切换主题">🌙</button>
+    </header>
+
+    <main>
+      <!-- 今天 -->
+      <section id="page-today" class="page active">
+        <div class="card">
+          <p class="card-title">此刻的心情，是哪一种？</p>
+          <div class="mood-grid" id="moodGrid"></div>
+        </div>
+
+        <div class="card comfort-card" id="comfortCard" hidden>
+          <p class="mood-emoji-big" id="moodEmoji">🫂</p>
+          <p class="card-title" id="comfortTitle"></p>
+          <p class="comfort-msg" id="comfortMsg"></p>
+          <div class="btn-row">
+            <button class="btn ghost" id="anotherMsg">再说一句</button>
+            <button class="btn primary" id="goBreathe">一起深呼吸</button>
+          </div>
+        </div>
+
+        <div class="card quick-card">
+          <p class="card-title">需要充电的话</p>
+          <button class="hug-big" id="hugBtn">🫂 抱抱我</button>
+          <p class="card-sub center">随时都可以，抱多少次都免费</p>
+        </div>
+      </section>
+
+      <!-- 呼吸 -->
+      <section id="page-breathe" class="page">
+        <div class="card breathe-card">
+          <p class="card-title">跟着圆圈，慢慢呼吸</p>
+          <div class="breathe-stage">
+            <div class="breathe-rings" aria-hidden="true"><span></span><span></span></div>
+            <div class="breathe-circle" id="breatheCircle">
+              <span id="breathePhase">准备开始</span>
+              <b id="breatheCount"></b>
+            </div>
+          </div>
+          <p class="breathe-tip" id="breatheTip">4 秒吸气 · 4 秒停留 · 6 秒呼气</p>
+          <div class="btn-row center">
+            <button class="btn primary" id="breatheToggle">开 始</button>
+            <button class="btn ghost" id="noiseToggle">🌧️ 白噪音</button>
+          </div>
+          <p class="breathe-done" id="breatheDone"></p>
+        </div>
+      </section>
+
+      <!-- 树洞 -->
+      <section id="page-hole" class="page">
+        <div class="card">
+          <p class="card-title">树洞 🌳</p>
+          <p class="card-sub">说给树洞听的话，只留在这台设备里，不会被任何人看见。</p>
+          <textarea id="holeInput" rows="4" placeholder="把心事放进来，轻一点也没关系…"></textarea>
+          <div class="btn-row right">
+            <button class="btn primary" id="holeSave">存进树洞</button>
+          </div>
+        </div>
+        <div id="noteList"></div>
+      </section>
+
+      <!-- 暖心话 -->
+      <section id="page-words" class="page">
+        <div class="card words-card" id="wordsCard" role="button" tabindex="0" aria-label="点一下换一句">
+          <p class="words-quote" id="wordsQuote"></p>
+          <p class="words-from">—— 抱抱星球悄悄话</p>
+        </div>
+        <p class="card-sub center tap-hint">点一下卡片，换一句</p>
+        <div class="btn-row center">
+          <button class="btn ghost" id="wordsCopy">复制这句</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button class="tab active" data-page="today"><span class="tab-ico">🏠</span><span class="tab-txt">今天</span></button>
+      <button class="tab" data-page="breathe"><span class="tab-ico">🌬️</span><span class="tab-txt">呼吸</span></button>
+      <button class="tab" data-page="hole"><span class="tab-ico">🌳</span><span class="tab-txt">树洞</span></button>
+      <button class="tab" data-page="words"><span class="tab-ico">💬</span><span class="tab-txt">暖心话</span></button>
+    </nav>
+  </div>
+
+  <!-- 抱抱全屏 -->
+  <div class="hug-overlay" id="hugOverlay" hidden>
+    <div class="hug-hearts" id="hugHearts" aria-hidden="true"></div>
+    <p class="hug-msg" id="hugMsg">抱抱你 🫂</p>
+    <p class="hug-hint">点一下任意位置，带着暖意继续生活</p>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

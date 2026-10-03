@@ -1,0 +1,309 @@
+/* ============ 抱抱星球 · 森系薄荷绿 ============ */
+:root {
+  --bg-a: #f5f8ee;
+  --bg-b: #e9f3e2;
+  --bg-c: #e2efe6;
+  --text: #3d4f3d;
+  --text-soft: rgba(61, 79, 61, 0.6);
+  --accent: #5f9578;
+  --accent-2: #9ecfa4;
+  --card: rgba(255, 255, 255, 0.74);
+  --card-border: rgba(255, 255, 255, 0.95);
+  --shadow: 0 10px 34px rgba(96, 138, 109, 0.16);
+  --btn-primary-text: #fff;
+  --input-bg: rgba(255, 255, 255, 0.85);
+  --tab-bg: rgba(255, 255, 255, 0.82);
+}
+html.dark {
+  --bg-a: #1c2721;
+  --bg-b: #182019;
+  --bg-c: #1f2c24;
+  --text: #edf3e6;
+  --text-soft: rgba(237, 243, 230, 0.55);
+  --accent: #8fc7a0;
+  --accent-2: #b9dcb4;
+  --card: rgba(255, 255, 255, 0.07);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.35);
+  --input-bg: rgba(255, 255, 255, 0.09);
+  --tab-bg: rgba(24, 32, 25, 0.88);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html { height: 100%; }
+body {
+  min-height: 100dvh;
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: linear-gradient(160deg, var(--bg-a), var(--bg-b) 52%, var(--bg-c));
+  background-attachment: fixed;
+  transition: background 0.6s ease, color 0.4s ease;
+  overflow-x: hidden;
+}
+
+/* ---------- 背景装饰：草丘光斑与落叶 ---------- */
+.bg-decor { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.blob {
+  position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.b1 { width: 46vmax; height: 46vmax; left: -18vmax; top: -14vmax;
+  background: radial-gradient(circle, rgba(178, 214, 168, 0.8), transparent 65%); }
+.b2 { width: 40vmax; height: 40vmax; right: -16vmax; top: 22vh;
+  background: radial-gradient(circle, rgba(196, 226, 186, 0.65), transparent 65%);
+  animation-delay: -6s; }
+.b3 { width: 44vmax; height: 44vmax; left: 6vmax; bottom: -20vmax;
+  background: radial-gradient(circle, rgba(216, 233, 205, 0.7), transparent 65%);
+  animation-delay: -12s; }
+html.dark .blob { opacity: 0.16; }
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(4vmax, 3vmax) scale(1.12); }
+}
+
+.leaves span {
+  position: absolute; top: 0; font-size: 20px; opacity: 0.35; pointer-events: none;
+  animation: leafFall linear infinite;
+}
+html.dark .leaves span { opacity: 0.22; }
+@keyframes leafFall {
+  0%   { transform: translate3d(0, -10vh, 0) rotate(0deg); }
+  25%  { transform: translate3d(3vw, 24vh, 0) rotate(85deg); }
+  50%  { transform: translate3d(-2vw, 52vh, 0) rotate(170deg); }
+  75%  { transform: translate3d(2vw, 78vh, 0) rotate(255deg); }
+  100% { transform: translate3d(-1vw, 112vh, 0) rotate(340deg); }
+}
+
+/* 深色模式 = 森林夜晚的萤火虫 */
+.stars { position: absolute; inset: 0; display: none; }
+html.dark .stars { display: block; }
+html.dark .stars::before, html.dark .stars::after {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(2px 2px at 12% 18%, rgba(222, 255, 172, 0.9), transparent 60%),
+    radial-gradient(1.4px 1.4px at 32% 8%,  rgba(222, 255, 172, 0.6), transparent 60%),
+    radial-gradient(2.2px 2.2px at 58% 22%, rgba(235, 255, 200, 0.8), transparent 60%),
+    radial-gradient(1.4px 1.4px at 76% 12%, rgba(222, 255, 172, 0.55), transparent 60%),
+    radial-gradient(1.8px 1.8px at 88% 30%, rgba(222, 255, 172, 0.75), transparent 60%),
+    radial-gradient(1.4px 1.4px at 22% 44%, rgba(222, 255, 172, 0.5), transparent 60%),
+    radial-gradient(1.6px 1.6px at 66% 52%, rgba(235, 255, 200, 0.65), transparent 60%),
+    radial-gradient(1.4px 1.4px at 44% 68%, rgba(222, 255, 172, 0.45), transparent 60%),
+    radial-gradient(2px 2px at 82% 74%, rgba(222, 255, 172, 0.6), transparent 60%);
+  animation: twinkle 5s ease-in-out infinite alternate;
+}
+html.dark .stars::after { transform: scale(-1) translateX(8%); animation-delay: -2.5s; }
+@keyframes twinkle { from { opacity: 0.45; } to { opacity: 1; } }
+
+/* ---------- 布局 ---------- */
+.app {
+  max-width: 520px; margin: 0 auto; min-height: 100dvh;
+  display: flex; flex-direction: column;
+  padding: calc(14px + env(safe-area-inset-top)) 18px calc(96px + env(safe-area-inset-bottom));
+}
+
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px 18px; }
+.greet h1 { font-size: 26px; letter-spacing: 0.5px; }
+.greet p { margin-top: 5px; font-size: 13px; color: var(--text-soft); }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--card-border);
+  background: var(--card); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-size: 20px; cursor: pointer; box-shadow: var(--shadow);
+  transition: transform 0.25s ease;
+}
+.icon-btn:active { transform: scale(0.9); }
+
+main { flex: 1; }
+.page { display: none; flex-direction: column; gap: 16px; animation: pageIn 0.45s ease; }
+.page.active { display: flex; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 26px; padding: 22px 20px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.card-title { font-size: 17px; font-weight: 600; }
+.card-sub { margin-top: 8px; font-size: 13px; line-height: 1.7; color: var(--text-soft); }
+.card-sub.center { text-align: center; }
+
+/* ---------- 心情 ---------- */
+.mood-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.mood-chip {
+  border: 1.5px solid transparent; border-radius: 20px; padding: 14px 6px 12px;
+  background: rgba(255, 255, 255, 0.55); cursor: pointer; text-align: center;
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  font-family: inherit; color: var(--text);
+}
+html.dark .mood-chip { background: rgba(255, 255, 255, 0.07); }
+.mood-chip span { display: block; font-size: 30px; line-height: 1.2; }
+.mood-chip b { display: block; margin-top: 6px; font-size: 13px; font-weight: 500; }
+.mood-chip:active { transform: scale(0.92); }
+.mood-chip.picked {
+  border-color: var(--accent);
+  background: linear-gradient(150deg, rgba(158, 207, 164, 0.34), rgba(95, 149, 120, 0.2));
+  transform: scale(1.04);
+}
+
+.comfort-card { text-align: center; }
+.mood-emoji-big { font-size: 46px; margin-bottom: 8px; }
+.comfort-msg {
+  margin: 14px 0 20px; font-size: 16.5px; line-height: 2; color: var(--text);
+  animation: msgIn 0.5s ease;
+}
+@keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---------- 按钮 ---------- */
+.btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-row.right { justify-content: flex-end; }
+.btn {
+  border: none; border-radius: 999px; padding: 13px 26px; font-size: 15px;
+  font-family: inherit; cursor: pointer; transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s;
+}
+.btn:active { transform: scale(0.94); }
+.btn.primary {
+  color: var(--btn-primary-text);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  box-shadow: 0 8px 22px rgba(95, 149, 120, 0.4);
+}
+.btn.ghost {
+  background: transparent; color: var(--text);
+  border: 1.5px solid var(--accent);
+  opacity: 0.85;
+}
+
+/* ---------- 抱抱 ---------- */
+.quick-card { text-align: center; }
+.hug-big {
+  margin: 18px auto 6px; display: block; width: 168px; height: 168px;
+  border-radius: 50%; border: none; cursor: pointer;
+  font-family: inherit; font-size: 21px; font-weight: 600; color: #fff;
+  background: radial-gradient(circle at 32% 28%, #d3ecc4, var(--accent-2) 45%, var(--accent));
+  box-shadow: 0 14px 38px rgba(95, 149, 120, 0.42), inset 0 -8px 18px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 6px rgba(47, 74, 56, 0.3);
+  animation: heartbeat 2.6s ease-in-out infinite;
+}
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.06); }
+  24% { transform: scale(1); }
+  36% { transform: scale(1.05); }
+  48% { transform: scale(1); }
+}
+.hug-big:active { transform: scale(0.93); animation: none; }
+
+.hug-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 42%, rgba(228, 244, 221, 0.97), rgba(163, 209, 158, 0.95));
+  animation: hugIn 0.5s ease;
+}
+html.dark .hug-overlay { background: radial-gradient(circle at 50% 42%, rgba(56, 90, 68, 0.97), rgba(22, 34, 26, 0.97)); }
+.hug-overlay[hidden] { display: none; }
+@keyframes hugIn { from { opacity: 0; } to { opacity: 1; } }
+.hug-msg { font-size: 30px; font-weight: 700; color: #2f4a38; text-shadow: 0 2px 14px rgba(255, 255, 255, 0.5); animation: msgIn 0.5s ease; }
+html.dark .hug-msg { color: #eef7e6; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.35); }
+.hug-hint { margin-top: 18px; font-size: 13px; color: rgba(47, 74, 56, 0.7); }
+html.dark .hug-hint { color: rgba(238, 247, 230, 0.7); }
+.hug-hearts { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.hug-hearts span {
+  position: absolute; bottom: -40px; font-size: 22px; opacity: 0.9;
+  animation: floatUp 3s ease-in forwards;
+}
+@keyframes floatUp {
+  from { transform: translateY(0) rotate(0deg); opacity: 0.95; }
+  to   { transform: translateY(-92vh) rotate(24deg); opacity: 0; }
+}
+
+/* ---------- 呼吸 ---------- */
+.breathe-card { text-align: center; }
+.breathe-stage { position: relative; height: 250px; display: flex; align-items: center; justify-content: center; margin: 18px 0 6px; }
+.breathe-rings { position: absolute; }
+.breathe-rings span {
+  position: absolute; left: 50%; top: 50%; width: 250px; height: 250px; border-radius: 50%;
+  border: 1.5px solid var(--accent); transform: translate(-50%, -50%); opacity: 0.26;
+}
+.breathe-rings span:nth-child(2) { width: 310px; height: 310px; opacity: 0.12; }
+.breathe-circle {
+  width: 160px; height: 160px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  background: radial-gradient(circle at 34% 30%, #d9efc9, var(--accent-2) 55%, var(--accent));
+  box-shadow: 0 12px 36px rgba(95, 149, 120, 0.4), inset 0 -10px 20px rgba(255, 255, 255, 0.28);
+  transform: scale(0.66);
+  border-radius: 58% 42% 55% 45% / 52% 58% 42% 48%;
+  animation: blobMorph 9s ease-in-out infinite alternate;
+}
+@keyframes blobMorph {
+  from { border-radius: 58% 42% 55% 45% / 52% 58% 42% 48%; }
+  to   { border-radius: 45% 55% 48% 52% / 58% 46% 54% 42%; }
+}
+.breathe-circle span { font-size: 17px; font-weight: 600; color: #fff; text-shadow: 0 1px 6px rgba(47, 74, 56, 0.3); }
+.breathe-circle b { font-size: 22px; color: rgba(255, 255, 255, 0.94); min-height: 26px; }
+.breathe-tip { font-size: 13px; color: var(--text-soft); margin: 10px 0 18px; }
+.breathe-done { min-height: 22px; margin-top: 14px; font-size: 13.5px; color: var(--text-soft); }
+
+/* ---------- 树洞 ---------- */
+textarea {
+  width: 100%; margin-top: 14px; padding: 14px 16px; border: none; border-radius: 18px;
+  background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 15px;
+  line-height: 1.8; resize: vertical; min-height: 110px; outline: none;
+}
+textarea::placeholder { color: var(--text-soft); }
+
+.note {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 22px;
+  padding: 16px 18px; margin-top: 12px; box-shadow: var(--shadow);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  transition: transform 2.4s ease-in, opacity 2.4s ease-in, filter 2.4s ease-in;
+}
+.note.flying { transform: translateY(-140vh) scale(0.6) rotate(6deg); opacity: 0; filter: blur(4px); }
+.note p { font-size: 14.5px; line-height: 1.9; white-space: pre-wrap; word-break: break-word; }
+.note-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.note-time { font-size: 12px; color: var(--text-soft); }
+.note-release {
+  border: none; background: transparent; font-family: inherit; font-size: 13px;
+  color: var(--accent); cursor: pointer; padding: 6px 10px; border-radius: 10px;
+}
+.note-release:active { transform: scale(0.94); }
+.empty-hole { text-align: center; padding: 26px 0 8px; font-size: 13.5px; color: var(--text-soft); }
+
+/* ---------- 暖心话 ---------- */
+.words-card { min-height: 300px; display: flex; flex-direction: column; justify-content: center; text-align: center; cursor: pointer; }
+.words-quote { font-size: 20px; line-height: 2.2; animation: msgIn 0.5s ease; }
+.words-from { margin-top: 22px; font-size: 12.5px; color: var(--text-soft); }
+.tap-hint { margin: 14px 0 2px; }
+
+/* ---------- 底部导航 ---------- */
+.tabbar {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  width: min(484px, calc(100vw - 32px));
+  display: flex; justify-content: space-around; padding: 8px;
+  background: var(--tab-bg); border: 1px solid var(--card-border); border-radius: 26px;
+  box-shadow: 0 12px 36px rgba(60, 90, 70, 0.2);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.tab {
+  border: none; background: transparent; font-family: inherit; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 16px; border-radius: 18px; color: var(--text-soft); font-size: 12px;
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+}
+.tab .tab-ico { font-size: 21px; transition: transform 0.25s ease; }
+.tab.active { color: var(--text); background: linear-gradient(150deg, rgba(158, 207, 164, 0.4), rgba(95, 149, 120, 0.24)); }
+.tab.active .tab-ico { transform: translateY(-2px) scale(1.12); }
+.tab:active { transform: scale(0.92); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: calc(108px + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(52, 78, 60, 0.88); color: #fff; font-size: 14px;
+  padding: 11px 22px; border-radius: 999px; pointer-events: none;
+  opacity: 0; transition: opacity 0.35s ease, transform 0.35s ease; z-index: 70;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
