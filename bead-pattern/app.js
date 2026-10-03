@@ -179,11 +179,11 @@ function render() {
     ctx.stroke();
   }
   /* 符号 / 坐标标号 */
-  if ((showSym || showCoord) && cellPx >= 12) {
+  if ((showSym || showCoord) && cellPx >= 8) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const showFull = showCoord && cellPx >= 24;
-    ctx.font = `700 ${Math.floor(cellPx * (showFull ? 0.28 : 0.55))}px sans-serif`;
+    ctx.font = `700 ${Math.floor(cellPx * (showFull ? 0.28 : cellPx <= 11 ? 0.8 : 0.55))}px sans-serif`;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const v = grid[y * W + x];
@@ -782,10 +782,12 @@ $("imgGo").addEventListener("click", () => {
   }
   pushUndo();
   grid.set(imgState.result);
-  fitZoom(); render();
-  rebuildSymbols(); saveSoon(); updateStat();
+  /* 生成后自动打开符号标号，省得再找开关 */
+  if (!showSym && !showCoord) { showSym = true; $("tgSym").checked = true; }
+  fitZoom(); rebuildSymbols(); render();
+  saveSoon(); updateStat();
   $("imgModal").hidden = true;
-  toast(`图纸生成好啦，用了 ${imgState.used.length} 种颜色 🧩`);
+  toast(`图纸生成好啦（${imgState.used.length} 色）· 符号已标上，点 ＋ 放大能看每格坐标 🧩`);
 });
 
 /* ---------- 尺寸 / 缩放 / 开关 ---------- */
@@ -796,7 +798,7 @@ function resizeBoard(nw, nh, skipUndo) {
     for (let x = 0; x < Math.min(W, nw); x++) ng[y * nw + x] = grid[y * W + x];
   }
   W = nw; H = nh; grid = ng;
-  fitZoom(); render(); rebuildSymbols(); saveSoon(); updateStat();
+  fitZoom(); rebuildSymbols(); render(); saveSoon(); updateStat();
 }
 $("sizeSel").addEventListener("change", (e) => {
   const n = +e.target.value;
@@ -1022,8 +1024,8 @@ function loadSaved() {
 loadSaved();
 buildPalette();
 fitZoom();
-render();
 rebuildSymbols();
+render();
 updateStat();
 
 /* 暴露给自动化测试 */
