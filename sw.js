@@ -1,5 +1,5 @@
 /* 抱抱星球 Service Worker：优先联网取新版，离线时用缓存 */
-const CACHE = "hugplanet-v2";
+const CACHE = "hugplanet-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,9 @@ const ASSETS = [
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then((c) => Promise.allSettled(ASSETS.map((u) => c.add(u))))
+      .then(() => self.skipWaiting())
   );
 });
 
