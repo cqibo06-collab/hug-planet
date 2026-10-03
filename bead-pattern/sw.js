@@ -1,5 +1,5 @@
-/* 拼豆图纸生成器 Service Worker：优先联网取新版，离线时用缓存 */
-const CACHE = "beadpattern-v1";
+/* 拼豆图纸生成器 Service Worker：优先联网取新版（绕过 HTTP 缓存），离线时用缓存 */
+const CACHE = "beadpattern-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -30,7 +30,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));
