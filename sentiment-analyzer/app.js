@@ -60,6 +60,7 @@ const RAW = {
     栓Q: 3, 服了: 2.5, 拉胯: 3, 下头: 3, 翻车: 3, 割韭菜: 4, 韭菜: 3,
     抬杠: 3, 杠精: 4, 阴阳怪气: 4, yygq: 3, PUA: 4, 醉了: 2.5, 离大谱: 4,
     麻烦: 2.5, 烦死: 3.5, 急死: 3, 愁死: 3, 累死: 3.5,
+    搞砸: 4, 砸了: 2.5, 受够了: 4, 真是够了: 3,
   },
   sadness: {
     难过: 5, 伤心: 5, 悲伤: 5, 悲痛: 6, 哀伤: 5, 哭: 4, 泪: 3, 眼泪: 3,
@@ -170,16 +171,23 @@ const LS = {
 /* ---------- 预处理：展平词典 + 用户自定义词典，按词长降序（贪婪最长匹配） ---------- */
 let WORDS = {};     /* 词 -> {e, i, pol} */
 let WORD_KEYS = [];
+let BASE_KEYS = new Set(); /* 内置词典键集（冲突提示用） */
 function rebuildWordIndex() {
   WORDS = {};
   for (const [emo, ws] of Object.entries(RAW)) {
     const pol = emo === "joy" || emo === "love" ? 1 : emo === "surprise" ? 0 : -1;
     for (const [w, i] of Object.entries(ws)) WORDS[w] = { e: emo, i: Math.abs(i), pol };
   }
-  /* 用户自定义：{词: ±强度}，正→乐，负→哀 */
+  BASE_KEYS = new Set(Object.keys(WORDS));
+  /* 用户自定义词典 v2：{词: {e, i}}，兼容旧版 {词: ±数值} */
   for (const [w, v] of Object.entries(LS.get("xin_dict", {}))) {
-    if (typeof v !== "number" || !v) continue;
-    WORDS[w] = { e: v > 0 ? "joy" : "sadness", i: Math.min(7, Math.abs(v)), pol: v > 0 ? 1 : -1 };
+    if (typeof v === "number") {
+      if (!v) continue;
+      WORDS[w] = { e: v > 0 ? "joy" : "sadness", i: Math.min(7, Math.abs(v)), pol: v > 0 ? 1 : -1 };
+    } else if (v && typeof v === "object") {
+      const pol = v.e === "joy" || v.e === "love" ? 1 : v.e === "surprise" ? 0 : -1;
+      WORDS[w] = { e: v.e, i: Math.min(7, Math.max(1, Math.abs(v.i) || 1)), pol };
+    }
   }
   WORD_KEYS = Object.keys(WORDS).sort((a, b) => b.length - a.length);
 }
@@ -386,6 +394,18 @@ function renderRadar(scores) {
 }
 
 function renderPersonality(text, aux) {
+  const sec = $("persSection");
+  /* 短文本不下人格/特征结论 —— 信息不足 */
+  if (text.length < 80) {
+    sec.hidden = false;
+    $("persRadar").style.display = "none";
+    $("persBars").style.display = "none";
+    $("persSummary").textContent = "信息不足：文本不足 80 字，无法给出可靠的语言特征倾向（这是基于词频的统计估计，文本太短时不出结论）。多写一些自我表达后再试～";
+    return null;
+  }
+  sec.hidden = false;
+  $("persRadar").style.display = "";
+  $("persBars").style.display = "";
   const p = computePersonality(text, aux);
   renderRadar(p.scores);
   $("persBars").innerHTML = Object.entries(PERS).map(([k, cfg]) => `
@@ -394,15 +414,14 @@ function renderPersonality(text, aux) {
       <div class="ptrack"><div class="pfill" style="width:${p.scores[k]}%"></div></div>
       <span class="pval">${p.scores[k]}</span>
     </div>`).join("");
-  $("persSummary").textContent = "画像关键词：" + p.tags.join(" · ") +
-    (text.length < 40 ? "（文本较短，仅供参考）" : "");
-  $("persSection").hidden = false;
+  $("persSummary").textContent = "特征关键词：" + p.tags.join(" · ");
   return p;
 }
 
 /* ---------- 核心：分析一段文字 ---------- */
 function analyzeOne(text) {
   const marks = [];       /* 高亮标注 {s,e,cls} */
+  const contribs = [];    /* 情感词贡献记录（反讽检测用） */
   let total = 0, energy = 0;
   const emoEnergy = {};   /* 情绪 -> 能量 */
   let hitPos = 0, hitNeg = 0;
@@ -488,6 +507,7 @@ function analyzeOne(text) {
       total += s; energy += Math.abs(s);
       emoEnergy[info.e] = (emoEnergy[info.e] || 0) + Math.abs(s);
       if (s > 0.05) hitPos++; else if (s < -0.05) hitNeg++;
+      contribs.push({ i, len: w.length, s });
       marks.push({ s: i, e: i + w.length, cls: s > 0.05 ? "p" : s < -0.05 ? "n" : "d" });
       i += w.length; continue;
     }
@@ -500,6 +520,32 @@ function analyzeOne(text) {
     const n = matchAt(text, i, NEGATIONS);
     if (n) { marks.push({ s: i, e: i + n.length, cls: "x" }); i += n.length; continue; }
     i++;
+  }
+
+  /* 反讽检测：同句内"可真/真是+褒词"与贬词共存（贬在后，或其间有又/还/也）*/
+  const warnings = [];
+  {
+    const segs = [];
+    let start = 0;
+    for (let idx = 0; idx <= text.length; idx++) {
+      const ch = text[idx];
+      if (idx === text.length || /[。！？!?；;\n]/.test(ch)) { segs.push([start, idx]); start = idx + 1; }
+    }
+    for (const [ss, se] of segs) {
+      const inSeg = contribs.filter(c => c.i >= ss && c.i < se);
+      const negs = inSeg.filter(c => c.s < -0.05);
+      const sarc = inSeg.filter(c => c.s > 0.05 && /(可真|真是|你可|好一[个位]|真算)/.test(text.slice(Math.max(0, c.i - 4), c.i)));
+      if (!sarc.length || !negs.length) continue;
+      const negAfter = negs.some(n => n.i > sarc[0].i);
+      const pivot = /[又还也]/.test(text.slice(sarc[0].i + sarc[0].len, se));
+      if (!negAfter && !pivot) continue;
+      if (window.__ironyLiteral) {
+        warnings.push(`检测到疑似反讽，当前按字面理解：「${text.slice(ss, se).trim().slice(0, 26)}」`);
+      } else {
+        for (const c of sarc) { total -= 2 * c.s; hitPos--; hitNeg++; }
+        warnings.push(`疑似反讽，已按反话处理：「${text.slice(ss, se).trim().slice(0, 26)}」`);
+      }
+    }
   }
 
   total *= boost;
@@ -526,7 +572,7 @@ function analyzeOne(text) {
     };
   }
 
-  return { score, label, weather, emotions, aspects, marks, hitPos, hitNeg, energy: Math.round(energy * 10) / 10 };
+  return { score, label, weather, emotions, aspects, marks, warnings, hitPos, hitNeg, energy: Math.round(energy * 10) / 10 };
 }
 
 /* ---------- 逐句分析 ---------- */
@@ -565,25 +611,73 @@ function renderTraj(scores) {
 }
 
 /* ---------- 自定义词典 ---------- */
-$("btnDictApply").addEventListener("click", () => {
-  const dict = {};
-  for (let line of $("dictInput").value.split("\n")) {
+/* 自定义词典 v2：可选情绪类别 + 校验 + 冲突提示 + 预览后应用 */
+const EMO_CHAR = { "乐": "joy", "好": "love", "怒": "anger", "哀": "sadness", "惧": "fear", "恶": "disgust", "惊": "surprise" };
+const EMO_CHAR_R = { joy: "乐", love: "好", anger: "怒", sadness: "哀", fear: "惧", disgust: "恶", surprise: "惊" };
+let pendingDict = null;
+
+function parseDictLines(raw) {
+  const entries = [], errors = [];
+  for (let line of raw.split("\n")) {
     line = line.trim();
     if (!line) continue;
-    const m = line.match(/^(\S{1,16})\s*([+-]?\d+(?:\.\d+)?)$/);
-    if (!m) { toast(`这行看不懂：「${line.slice(0, 12)}」（格式：词语 ±强度）`); return; }
-    dict[m[1]] = Math.max(-7, Math.min(7, parseFloat(m[2])));
+    let m = line.match(/^(\S{1,16})\s+([乐好怒哀惧恶惊])\s+([+-]?\d+(?:\.\d+)?)$/);
+    if (m) { entries.push({ w: m[1], e: EMO_CHAR[m[2]], i: Math.min(7, Math.max(1, Math.abs(parseFloat(m[3])) || 1)) }); continue; }
+    m = line.match(/^(\S{1,16})\s+([+-]?\d+(?:\.\d+)?)$/);
+    if (m) {
+      const v = parseFloat(m[2]);
+      entries.push({ w: m[1], e: v > 0 ? "joy" : "sadness", i: Math.min(7, Math.max(1, Math.abs(v) || 1)) });
+      continue;
+    }
+    errors.push(line);
   }
+  return { entries, errors };
+}
+
+$("btnDictApply").addEventListener("click", () => {
+  const msg = $("dictMsg");
+  if (!pendingDict) {
+    /* 第一步：解析并预览 */
+    const { entries, errors } = parseDictLines($("dictInput").value);
+    if (errors.length) {
+      msg.textContent = "无法解析：" + errors.map(e => `「${e.slice(0, 12)}」`).join("、") + " —— 正确格式：词语 类别 强度（如 卷王 怒 4）或 词语 ±强度（如 真香 +4）";
+      msg.className = "dict-msg err";
+      return;
+    }
+    if (!entries.length) { msg.textContent = "没有可应用的词条"; msg.className = "dict-msg err"; return; }
+    pendingDict = entries;
+    const conflicts = entries.filter(en => BASE_KEYS.has(en.w));
+    msg.textContent = "将应用 " + entries.length + " 条：" +
+      entries.map(en => `${en.w}→${EMO_CHAR_R[en.e]}${en.i}${BASE_KEYS.has(en.w) ? "(覆盖内置)" : ""}`).join("；") +
+      (conflicts.length ? "。⚠️ 含 " + conflicts.length + " 条覆盖内置词，请确认。" : "。确认无误请再点一次「确认应用」。");
+    msg.className = "dict-msg ok";
+    $("btnDictApply").textContent = "确认应用";
+    return;
+  }
+  /* 第二步：真正应用 */
+  const dict = {};
+  for (const en of pendingDict) dict[en.w] = { e: en.e, i: en.i };
   LS.set("xin_dict", dict);
   rebuildWordIndex();
-  toast(`已应用 ${Object.keys(dict).length} 条自定义词条 ✅`);
+  pendingDict = null;
+  $("btnDictApply").textContent = "预览并应用";
+  msg.textContent = `已应用 ${Object.keys(dict).length} 条 ✅`;
+  msg.className = "dict-msg ok";
   runAnalysis();
 });
 $("btnDictReset").addEventListener("click", () => {
   LS.set("xin_dict", {});
   $("dictInput").value = "";
+  $("dictMsg").textContent = "";
+  pendingDict = null;
+  $("btnDictApply").textContent = "预览并应用";
   rebuildWordIndex();
   toast("已恢复默认词典");
+  runAnalysis();
+});
+/* 反讽：按字面 / 按反讽 切换重算 */
+$("warnBtn").addEventListener("click", () => {
+  window.__ironyLiteral = !window.__ironyLiteral;
   runAnalysis();
 });
 
@@ -604,6 +698,18 @@ function runAnalysis() {
   num.style.color = r.score >= 25 ? "var(--pos)" : r.score <= -25 ? "var(--neg)" : "var(--text-soft)";
   $("scoreLabel").textContent = r.label;
   $("weatherLine").textContent = r.weather;
+
+  /* 反讽提示与切换 */
+  const warnSec = $("warnSection");
+  if (r.warnings && r.warnings.length) {
+    warnSec.hidden = false;
+    $("warnText").textContent = r.warnings.join("；");
+    $("warnBtn").textContent = window.__ironyLiteral ? "按反讽重算" : "按字面重算";
+  } else warnSec.hidden = true;
+
+  /* 情绪构成（区分"未识别"与"中性"） */
+  const emoHit = Object.values(r.emotions).some(v => v > 0);
+  $("emoHint").hidden = emoHit;
 
   /* 情绪条 */
   const bars = $("emoBars");
@@ -646,18 +752,19 @@ function runAnalysis() {
       const mine = msgs.filter(m => m.s === name);
       const joined = mine.map(m => m.t).join("。");
       const sr = analyzeOne(joined);
-      const pp = computePersonality(joined, sr);
+      const pp = joined.length >= 80 ? computePersonality(joined, sr) : null;
       const topEmo = Object.entries(sr.emotions).sort((a, b) => b[1] - a[1])[0];
-      return { name, count: mine.length, sr, topEmo, tags: pp.tags };
+      return { name, count: mine.length, sr, topEmo, tags: pp ? pp.tags : null };
     });
     spkSec.hidden = false;
     spkList.innerHTML = rows.map(r2 => {
       const c = r2.sr.score >= 25 ? "var(--pos)" : r2.sr.score <= -25 ? "var(--neg)" : "var(--text-soft)";
       const emoName = EMOTIONS[r2.topEmo[0]].name.split(" · ")[1];
       const emo = r2.topEmo[1] > 0 ? `${EMOTIONS[r2.topEmo[0]].icon} ${emoName} ${r2.topEmo[1]}%` : "无明显情绪";
+      const tagHtml = r2.tags ? `<span class="pers-tags">${esc(r2.tags.join(" / "))}</span>` : "";
       return `<div class="spk-row">
         <span class="spk-ava" style="background:${speakerColor(r2.name)}">${esc(r2.name.slice(0, 1))}</span>
-        <span class="spk-info"><span class="spk-name">${esc(r2.name)}<span class="pers-tags">${esc(r2.tags.join(" / "))}</span></span><span class="spk-meta">${r2.count} 条 · 主导情绪 ${emo}</span></span>
+        <span class="spk-info"><span class="spk-name">${esc(r2.name)}${tagHtml}</span><span class="spk-meta">${r2.count} 条 · 主导情绪 ${emo}</span></span>
         <span class="spk-score"><b style="color:${c}">${r2.sr.score > 0 ? "+" : ""}${r2.sr.score}</b><span>${r2.sr.label}</span></span>
       </div>`;
     }).join("");
@@ -693,9 +800,16 @@ function runAnalysis() {
   $("statLine").textContent = `共 ${text.length} 字 · 识别积极表达 ${r.hitPos} 处 · 消极表达 ${r.hitNeg} 处 · 情绪能量 ${r.energy}`;
 }
 
-/* ---------- 历史 ---------- */
+/* ---------- 历史（隐私：默认不保存，30 天过期，可单条删除） ---------- */
+const HIS_TTL = 30 * 864e5;
+function hisEnabled() { return LS.get("xin_save", false) === true; }
+function pruneOld(his) {
+  const cutoff = Date.now() - HIS_TTL;
+  return his.filter(h => h.t >= cutoff);
+}
 function saveHistory(text, r) {
-  const his = LS.get("xin_history", []);
+  if (!hisEnabled()) return; /* 默认关闭：未经用户开启不落盘 */
+  const his = pruneOld(LS.get("xin_history", []));
   his.unshift({ t: Date.now(), text: text.slice(0, 60), score: r.score, label: r.label });
   LS.set("xin_history", his.slice(0, 20));
   renderHistory();
@@ -705,14 +819,22 @@ function timeStr(t) {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 function renderHistory() {
-  const his = LS.get("xin_history", []);
+  const his = pruneOld(LS.get("xin_history", []));
   const box = $("hisList");
-  if (!his.length) { box.innerHTML = `<p class="empty">还没有记录，分析一段文字后会自动保存在本机。</p>`; return; }
-  box.innerHTML = his.map(h => {
+  if (!his.length) {
+    box.innerHTML = `<p class="empty">暂无记录。开启上方开关后，分析记录才会计入本机浏览器（不上传，30 天自动清理）。</p>`;
+    return;
+  }
+  const note = hisEnabled() ? "" : `<p class="empty">自动保存已关闭，以下为之前遗留的记录，可逐条删除或清空。</p>`;
+  box.innerHTML = note + his.map(h => {
     const icon = h.score >= 60 ? "☀️" : h.score >= 25 ? "🌤️" : h.score > -25 ? "⛅" : h.score > -60 ? "🌧️" : "⛈️";
     const c = h.score >= 25 ? "var(--pos)" : h.score <= -25 ? "var(--neg)" : "var(--text-soft)";
-    return `<div class="his-row"><span class="his-emoji">${icon}</span><span class="his-txt">${esc(h.text)}</span><span class="his-score" style="color:${c}">${h.score > 0 ? "+" : ""}${h.score}</span><span class="his-time">${timeStr(h.t)}</span></div>`;
+    return `<div class="his-row"><span class="his-emoji">${icon}</span><span class="his-txt">${esc(h.text)}</span><span class="his-score" style="color:${c}">${h.score > 0 ? "+" : ""}${h.score}</span><span class="his-time">${timeStr(h.t)}</span><button class="his-del" data-t="${h.t}" title="删除这条">✕</button></div>`;
   }).join("");
+  box.querySelectorAll(".his-del").forEach(b => b.addEventListener("click", () => {
+    LS.set("xin_history", LS.get("xin_history", []).filter(h => h.t !== +b.dataset.t));
+    renderHistory();
+  }));
 }
 
 /* ---------- 输入联动 ---------- */
@@ -733,7 +855,12 @@ $("btnClear").addEventListener("click", () => {
   $("inputText").value = ""; $("charCount").textContent = "0 / 2000";
   $("resultCard").hidden = true;
 });
-$("btnClearHis").addEventListener("click", () => { LS.set("xin_history", []); renderHistory(); toast("历史已清空"); });
+$("btnClearHis").addEventListener("click", () => { LS.set("xin_history", []); renderHistory(); toast("记录已清空"); });
+$("tgHis").addEventListener("change", (e) => {
+  LS.set("xin_save", e.target.checked);
+  toast(e.target.checked ? "已开启本机保存（仅此浏览器，30 天自动清理）" : "已关闭自动保存，之后的分析不再记录");
+  renderHistory();
+});
 
 /* ---------- 对话检测与说话人分析 ----------
  * 支持两种格式：
@@ -849,17 +976,33 @@ function cleanChat(raw) {
   }
   return out.join("\n");
 }
-function doClean(target) {
-  const el = $(target);
-  const cleaned = cleanChat(el.value);
-  if (!el.value.trim()) { toast("先粘贴聊天记录进来"); return; }
-  const removed = el.value.split(/\r?\n/).filter(s => s.trim()).length - cleaned.split("\n").filter(Boolean).length;
-  el.value = cleaned;
-  el.dispatchEvent(new Event("input"));
-  toast(removed > 0 ? `清理完成，去掉 ${removed} 行杂项 🧹` : "没发现需要清理的时间戳/昵称前缀");
+let cleanPending = null;
+function doClean(targetId) {
+  const el = $(targetId);
+  const raw = el.value;
+  if (!raw.trim()) { toast("先粘贴聊天记录进来"); return; }
+  const cleaned = cleanChat(raw);
+  const rawN = raw.split(/\r?\n/).filter(s => s.trim()).length;
+  const newN = cleaned.split("\n").filter(Boolean).length;
+  cleanPending = { targetId, raw, cleaned };
+  $("cleanStat").textContent =
+    `原 ${rawN} 行 → 清理后 ${newN} 行（去掉时间戳、[表情]等占位符、系统行` +
+    (isDialogue(raw) ? "；对话格式会保留昵称前缀" : "") + `）。确认前不会改动原文。`;
+  $("cleanPreview").value = cleaned;
+  $("cleanModal").hidden = false;
 }
 $("btnClean").addEventListener("click", () => doClean("inputText"));
 $("btnClean2").addEventListener("click", () => doClean("batchText"));
+$("cleanCancel").addEventListener("click", () => { cleanPending = null; $("cleanModal").hidden = true; });
+$("cleanApply").addEventListener("click", () => {
+  if (!cleanPending) { $("cleanModal").hidden = true; return; }
+  const el = $(cleanPending.targetId);
+  el.value = cleanPending.cleaned;
+  el.dispatchEvent(new Event("input"));
+  cleanPending = null;
+  $("cleanModal").hidden = true;
+  toast("清理已应用 ✅（取消过就不会改动原文）");
+});
 
 /* ---------- 示例 ---------- */
 const DEMOS = [
@@ -897,10 +1040,34 @@ $("btnBatchGo").addEventListener("click", () => {
     `最积极：${esc(best.line.slice(0, 18))}（+${best.r.score}） · 最消极：${esc(worst.line.slice(0, 18))}（${worst.r.score}）`;
 
   window.__batchResults = results;
-  $("batchList").innerHTML = results.map(x => {
+  renderBatchRows();
+});
+/* 批量筛选 / 排序 / 重渲染 */
+function renderBatchRows() {
+  const res = window.__batchResults || [];
+  const f = $("batchFilter").value, s = $("batchSort").value;
+  let list = res.filter(x => f === "all" ? true : f === "pos" ? x.r.score >= 25 : f === "neu" ? (x.r.score > -25 && x.r.score < 25) : x.r.score <= -25);
+  if (s === "desc") list = [...list].sort((a, b) => b.r.score - a.r.score);
+  if (s === "asc") list = [...list].sort((a, b) => a.r.score - b.r.score);
+  $("batchList").innerHTML = list.map(x => {
     const c = x.r.score >= 25 ? "var(--pos)" : x.r.score <= -25 ? "var(--neg)" : "var(--text-soft)";
     return `<div class="batch-row"><span class="idx">${x.idx}.</span><p>${esc(x.line)}</p><span class="r" style="color:${c}">${x.r.score > 0 ? "+" : ""}${x.r.score} ${x.r.label}</span></div>`;
   }).join("");
+}
+$("batchFilter").addEventListener("change", renderBatchRows);
+$("batchSort").addEventListener("change", renderBatchRows);
+$("btnCsv").addEventListener("click", () => {
+  const res = window.__batchResults || [];
+  if (!res.length) return;
+  const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
+  const rows = [["序号", "内容", "情绪分", "判定"], ...res.map(x => [x.idx, x.line, x.r.score, x.r.label])];
+  const csv = "\uFEFF" + rows.map(r => r.map(q).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "批量分析结果.csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast("CSV 已导出（含 BOM，Excel 可直接打开）");
 });
 $("btnBatchCopy").addEventListener("click", () => {
   if (!window.__batchResults) return;
@@ -923,8 +1090,12 @@ document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () =>
 rebuildWordIndex();
 (function loadDict() {
   const d = LS.get("xin_dict", {});
-  $("dictInput").value = Object.entries(d).map(([w, v]) => `${w} ${v > 0 ? "+" : ""}${v}`).join("\n");
+  $("dictInput").value = Object.entries(d).map(([w, v]) => {
+    if (typeof v === "number") return `${w} ${v > 0 ? "+" : ""}${v}`;
+    return `${w} ${EMO_CHAR_R[v.e]} ${v.i}`;
+  }).join("\n");
 })();
+$("tgHis").checked = hisEnabled();
 renderHistory();
 
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {

@@ -1,5 +1,5 @@
 /* 心晴分析 Service Worker：优先联网取新版（绕过 HTTP 缓存），离线时用缓存 */
-const CACHE = "xinqing-v1";
+const CACHE = "xinqing-v3";
 const ASSETS = [
   "./",
   "./index.html",

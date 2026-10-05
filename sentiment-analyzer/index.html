@@ -59,8 +59,14 @@
 
         <div class="weather-line" id="weatherLine">🌤️ 数据不足</div>
 
+        <div class="warn-line" id="warnSection" hidden>
+          <span id="warnText"></span>
+          <button class="link-btn" id="warnBtn">按字面重算</button>
+        </div>
+
         <div class="emo-section">
-          <p class="sec-title">情绪构成</p>
+          <p class="sec-title">情绪构成 <small>（词典命中权重占比，非心理测量）</small></p>
+          <p class="emo-hint" id="emoHint" hidden>未识别到情绪词 —— 注意这与"中性"不同：中性是正负相抵，这里是没找到情感表达。</p>
           <div id="emoBars"></div>
         </div>
 
@@ -75,7 +81,7 @@
         </div>
 
         <div class="pers-section" id="persSection" hidden>
-          <p class="sec-title">人格画像 <small>（大五模型 · LIWC 式语言特征估计，仅供参考）</small></p>
+          <p class="sec-title">语言特征倾向 <small>（大五词频估计 · 需 80 字以上 · 仅供参考）</small></p>
           <div class="pers-flex">
             <svg id="persRadar" width="150" height="136" viewBox="0 0 260 236"></svg>
             <div id="persBars" class="pers-bars"></div>
@@ -98,24 +104,31 @@
           <div class="traj-wrap"><svg id="trajSvg" preserveAspectRatio="none"></svg></div>
         </div>
 
+        <details class="explain">
+          <summary>分数是怎么算的？</summary>
+          <p>情绪分范围 <b>-100 ~ +100</b>：情感词典权重求和后经 tanh 压缩，并按"情感词命中数量"折减置信度（单个情感词不足以支撑极端判定）。情绪构成百分比 = 各情绪词典命中权重占比，不是心理测量。<b>"中性"</b> = 正负相抵或证据较弱；<b>"未识别到情绪"</b> = 没有命中任何情感词，两者含义不同。</p>
+        </details>
+
         <div class="stat-line" id="statLine"></div>
       </div>
 
       <div class="card custom-card">
         <details class="custom">
           <summary>📖 自定义词典（教它认识你的圈子）</summary>
-          <p class="dict-tip">每行一条，格式：<b>词语 空格 ±强度</b>（强度 1~7）。正数=积极（计入"乐"），负数=消极（计入"哀"）。例如：<br>卷王 -4<br>真香 +4<br>草莓蛋糕 +5</p>
-          <textarea id="dictInput" rows="4" placeholder="卷王 -4&#10;真香 +4"></textarea>
+          <p class="dict-tip">每行一条，两种格式：<br>① <b>词语 类别 强度</b>（类别：乐/好/怒/哀/惧/恶/惊，强度 1~7），如：卷王 怒 4<br>② <b>词语 ±强度</b>（正=乐，负=哀），如：真香 +4<br>与内置词典冲突时会覆盖并提示。</p>
+          <textarea id="dictInput" rows="4" placeholder="卷王 怒 4&#10;真香 +4"></textarea>
+          <p class="dict-msg" id="dictMsg"></p>
           <div class="btn-row">
             <button class="link-btn danger" id="btnDictReset">恢复默认</button>
-            <button class="btn primary" id="btnDictApply" style="padding:8px 18px;font-size:13px;">应用词典</button>
+            <button class="btn primary" id="btnDictApply" style="padding:8px 18px;font-size:13px;">预览并应用</button>
           </div>
         </details>
       </div>
 
       <div class="card history-card">
         <p class="sec-title">最近分析 <button class="link-btn danger" id="btnClearHis">清空</button></p>
-        <div id="hisList"><p class="empty">还没有记录，分析一段文字后会自动保存在本机。</p></div>
+        <label class="his-toggle"><input type="checkbox" id="tgHis"> 自动保存分析记录到本机（浏览器 localStorage，保留 30 天，不上传）</label>
+        <div id="hisList"></div>
       </div>
     </section>
 
@@ -133,12 +146,40 @@
       </div>
       <div class="card" id="batchResult" hidden>
         <div class="batch-summary" id="batchSummary"></div>
+        <div class="batch-ctrl">
+          <select id="batchFilter" title="筛选">
+            <option value="all">全部</option>
+            <option value="pos">只看积极</option>
+            <option value="neu">只看中性</option>
+            <option value="neg">只看消极</option>
+          </select>
+          <select id="batchSort" title="排序">
+            <option value="idx">按输入顺序</option>
+            <option value="desc">分数高→低</option>
+            <option value="asc">分数低→高</option>
+          </select>
+          <span class="grow"></span>
+          <button class="link-btn" id="btnCsv">📥 导出 CSV</button>
+        </div>
         <div class="batch-list" id="batchList"></div>
         <div class="btn-row"><button class="btn ghost" id="btnBatchCopy">复制结果</button></div>
       </div>
     </section>
 
-    <footer class="foot">词典本地匹配 · 不联网不上传 · 约 500 词 + 表情符号</footer>
+    <footer class="foot">词典本地匹配 · 不联网不上传<br>分析结果仅供个人参考，不构成心理诊断，请勿用于评价他人或自动化决策</footer>
+  </div>
+
+  <!-- 聊天清理预览 -->
+  <div class="overlay" id="cleanModal" hidden>
+    <div class="modal">
+      <h2>🧹 清理预览</h2>
+      <p class="hint" id="cleanStat"></p>
+      <textarea id="cleanPreview" rows="9" readonly></textarea>
+      <div class="btn-row">
+        <button class="btn ghost" id="cleanCancel">取消</button>
+        <button class="btn primary" id="cleanApply">应用清理</button>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast" role="status"></div>
