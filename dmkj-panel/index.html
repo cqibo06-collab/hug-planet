@@ -138,6 +138,7 @@ function drawSub(){
     + '<button class="aiopen" id="btnClip">📋 剪贴板导入</button>'+
     '<button class="aiopen" id="btnWipe">🗑 清除我的数据</button>';
   document.getElementById("btnSwap").onclick = function(){ document.getElementById("dataFile").click(); };
+  document.getElementById("btnClip").onclick = importClip;
   document.getElementById("btnExport").onclick = function(){
     var b = new Blob([JSON.stringify(DATA)], {type:"application/json;charset=utf-8"});
     var a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "到梦空间活动数据.json";
@@ -250,7 +251,6 @@ function importClip(){
 }
 document.getElementById("btnImportGate").onclick = function(){ document.getElementById("dataFile").click(); };
 document.getElementById("btnClipGate").onclick = importClip;
-document.getElementById("btnClip").onclick = importClip;
 document.querySelectorAll(".bm").forEach(function(a){
   a.addEventListener("click", function(e){
     if(location.hostname.indexOf("5idream") < 0){
