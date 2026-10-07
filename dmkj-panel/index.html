@@ -73,6 +73,12 @@ button:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid #
 #gate .gnote{color:#aaa;font-size:12px;line-height:1.9;margin-top:14px}
 #gate .gate-ico{font-size:42px;text-align:center;margin-bottom:6px}
 .sub .aiopen{margin-left:6px}
+details.howto{background:#fff;border:1px solid #e0d9c8;border-radius:10px;padding:10px 14px;margin-top:12px;font-size:13px;line-height:2}
+details.howto summary{cursor:pointer;color:#8a6d1f;font-weight:600}
+details.howto .hstep{margin:6px 0;color:#555}
+a.bm{display:inline-block;background:#eef4ff;border:1px dashed #3a6fd8;color:#3a6fd8;border-radius:8px;padding:4px 12px;text-decoration:none;font-weight:600}
+a.bm:active{background:#dfe9ff}
+details.howto .gnote{color:#aaa;font-size:12px;line-height:1.9;margin-top:4px}
 </style></head><body><div class="wrap">
 <div id="gate"><div class="gbox">
   <div class="gate-ico">🪐</div>
@@ -80,6 +86,16 @@ button:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid #
   <div class="gdesc">这是一个「空壳」面板：导入<b>你自己的</b>活动数据 JSON 后才会显示内容。<br>
   每个人导入各自的文件，数据只存在<b>各自的浏览器</b>里 —— 互相看不到，也不会上传到任何服务器。</div>
   <button class="gbtn" id="btnImportGate">📂 导入我的活动数据（.json）</button>
+  <button class="gbtn" id="btnClipGate" style="background:#fff;border:1px solid #e0d9c8;color:#666">📋 从剪贴板导入</button>
+  <details class="howto"><summary>🔄 还没有数据文件？装一个「书签」一键从到梦空间抓取</summary>
+    <div class="hstep">① 把这个链接<b>拖到浏览器书签栏</b>（或右键 → 添加到收藏）：<br>
+      <a class="bm" id="bmLink" href="javascript:(async%20function()%7B%0Atry%7B%0A%20%20if(location.hostname.indexOf('5idream')%3C0)%7B%20alert('%E8%AF%B7%E5%85%88%E6%89%93%E5%BC%80%E5%B9%B6%E7%99%BB%E5%BD%95%E5%88%B0%E6%A2%A6%E7%A9%BA%E9%97%B4%E7%BD%91%E9%A1%B5%E7%89%88%EF%BC%88www.5idream.net%EF%BC%89%EF%BC%8C%E5%86%8D%E7%82%B9%E8%BF%99%E4%B8%AA%E4%B9%A6%E7%AD%BE')%3B%20return%3B%20%7D%0A%20%20function%20get(p%2Cpg)%7B%20return%20fetch(p%2B'%3Fpage%3D'%2Bpg%2B'%26size%3D20'%2C%7Bcredentials%3A'same-origin'%7D).then(function(r)%7B%20if(!r.ok)%20throw%20new%20Error('HTTP%20'%2Br.status)%3B%20return%20r.json()%3B%20%7D)%3B%20%7D%0A%20%20var%20joins%3D%5B%5D%2Cseen%3D%7B%7D%2Cempty%3D0%3B%0A%20%20for(var%20pg%3D1%3Bpg%3C%3D30%3Bpg%2B%2B)%7B%0A%20%20%20%20var%20d%3Dawait%20get('%2Factivity%2Factivity%2Fmyjoin'%2Cpg)%3B%0A%20%20%20%20var%20rr%3Dd.rows%7C%7C%5B%5D%3B%20if(!rr.length)%20break%3B%0A%20%20%20%20var%20na%3D0%3B%0A%20%20%20%20rr.forEach(function(x)%7B%20if(!seen%5Bx.id%5D)%7B%20seen%5Bx.id%5D%3D1%3B%20joins.push(x)%3B%20if(%5B'3'%2C'4'%2C'5'%5D.indexOf(String(x.status))%3E%3D0)%20na%2B%2B%3B%20%7D%20%7D)%3B%0A%20%20%20%20if(pg%3E2%26%26na%3D%3D%3D0)%7B%20empty%2B%2B%3B%20if(empty%3E%3D2)%20break%3B%20%7D%20else%20empty%3D0%3B%0A%20%20%7D%0A%20%20var%20chk%3D%7B%7D%2Cseen2%3D%7B%7D%3B%0A%20%20for(var%20pg2%3D1%3Bpg2%3C%3D20%3Bpg2%2B%2B)%7B%0A%20%20%20%20var%20d2%3Dawait%20get('%2Factivity%2Factivity%2Fmycheckin'%2Cpg2)%3B%0A%20%20%20%20var%20r2%3Dd2.rows%7C%7C%5B%5D%3B%20if(!r2.length)%20break%3B%0A%20%20%20%20r2.forEach(function(x)%7B%20if(!seen2%5Bx.id%5D)%7B%20seen2%5Bx.id%5D%3D1%3B%20chk%5Bx.id%5D%3D1%3B%20%7D%20%7D)%3B%0A%20%20%7D%0A%20%20%0Afunction%20bmCore(rows%2C%20checked%2C%20attachMap)%7B%0A%20%20var%20items%20%3D%20%5B%5D%3B%0A%20%20(rows%20%7C%7C%20%5B%5D).forEach(function(a)%7B%0A%20%20%20%20var%20st%20%3D%20String(a.status%20!%3D%20null%20%3F%20a.status%20%3A%20(a.st%20!%3D%20null%20%3F%20a.st%20%3A%20''))%3B%0A%20%20%20%20if(%5B'3'%2C'4'%2C'5'%5D.indexOf(st)%20%3C%200)%20return%3B%0A%20%20%20%20var%20det%20%3D%20a.detail%20%7C%7C%20%7B%7D%3B%0A%20%20%20%20var%20content%20%3D%20a.content%20!%3D%20null%20%3F%20a.content%20%3A%20(det.content%20%7C%7C%20'')%3B%0A%20%20%20%20var%20jointip%20%3D%20a.jointip%20!%3D%20null%20%3F%20a.jointip%20%3A%20(det.jointip%20%7C%7C%20'')%3B%0A%20%20%20%20var%20name%20%3D%20a.name%20%7C%7C%20''%3B%0A%20%20%20%20var%20text%20%3D%20content%20%2B%20'%5Cn'%20%2B%20jointip%3B%0A%20%20%20%20var%20wm%20%3D%20text.match(%2F%E4%B8%8D%E5%B0%91%E4%BA%8E%5Cs*(%5Cd%2B)%5Cs*%E5%AD%97%2F)%20%7C%7C%20text.match(%2F(%5Cd%2B)%5Cs*%E5%AD%97%E4%BB%A5%E4%B8%8A%2F)%20%7C%7C%20text.match(%2F%E5%86%99%5Cs*(%5Cd%2B)%5Cs*%E5%AD%97%2F)%3B%0A%20%20%20%20var%20groups%20%3D%20%5B%5D%2C%20gs%20%3D%20%7B%7D%3B%0A%20%20%20%20(text.match(%2F(%3F%3AQQ%5Cs*%E7%BE%A4%7C%E7%BE%A4%5Cd%7C%E5%8A%A0%E7%BE%A4%7C%E5%AD%A6%E4%B9%A0%E9%80%9A(%3F%3A%E7%8F%AD%E7%BA%A7)%3F)%5B%E5%8F%B7%5D%3F%5Cs*%5B%3A%EF%BC%9A%5D%3F%5Cs*(%5Cd%7B5%2C12%7D)%2Fg)%20%7C%7C%20%5B%5D).forEach(function(s)%7B%0A%20%20%20%20%20%20var%20n%20%3D%20(s.match(%2F(%5Cd%7B5%2C12%7D)%24%2F)%20%7C%7C%20%5B%5D)%5B1%5D%3B%0A%20%20%20%20%20%20if(n%20%26%26%20!gs%5Bn%5D)%7B%20gs%5Bn%5D%20%3D%201%3B%20groups.push(n)%3B%20%7D%0A%20%20%20%20%7D)%3B%0A%20%20%20%20var%20naming%20%3D%20%2F%E5%A7%93%E5%90%8D%5Cs*%5B%2B%EF%BC%8B%5D%5Cs*%E5%AD%A6%E5%8F%B7%2F.test(text)%20%3F%20'%E5%A7%93%E5%90%8D%2B%E5%AD%A6%E5%8F%B7'%20%3A%20(%2F%E5%AD%A6%E5%8F%B7%5Cs*%5B%2B%EF%BC%8B%5D%5Cs*%E5%A7%93%E5%90%8D%2F.test(text)%20%3F%20'%E5%AD%A6%E5%8F%B7%2B%E5%A7%93%E5%90%8D'%20%3A%20null)%3B%0A%20%20%20%20var%20channels%20%3D%20%5B%5D%3B%0A%20%20%20%20%5B%5B'%E7%BE%A4%E7%9B%B8%E5%86%8C'%2C'QQ%E7%BE%A4%E7%9B%B8%E5%86%8C'%5D%2C%5B'%E6%94%B6%E9%9B%86%E8%A1%A8'%2C'%E6%94%B6%E9%9B%86%E8%A1%A8'%5D%2C%5B'%E5%AD%A6%E4%B9%A0%E9%80%9A'%2C'%E5%AD%A6%E4%B9%A0%E9%80%9A'%5D%2C%5B'%E6%8A%96%E9%9F%B3'%2C'%E6%8A%96%E9%9F%B3'%5D%2C%5B'%E5%BE%AE%E5%8D%9A'%2C'%E5%BE%AE%E5%8D%9A'%5D%2C%5B'QQ%E7%A9%BA%E9%97%B4'%2C'QQ%E7%A9%BA%E9%97%B4'%5D%5D.forEach(function(p)%7B%0A%20%20%20%20%20%20if(text.indexOf(p%5B0%5D)%20%3E%3D%200%20%26%26%20channels.indexOf(p%5B1%5D)%20%3C%200)%20channels.push(p%5B1%5D)%3B%0A%20%20%20%20%7D)%3B%0A%20%20%20%20var%20f%20%3D%20%7B%0A%20%20%20%20%20%20handwrite%3A%20%2F%E6%89%8B%E5%86%99%2F.test(text)%2C%0A%20%20%20%20%20%20photo%3A%20%2F%E6%8B%8D%E7%85%A7%7C%E7%85%A7%E7%89%87%7C%E5%9B%BE%E7%89%87%7C%E5%AE%9E%E6%8B%8D%7C%E6%88%AA%E5%9B%BE%2F.test(text)%2C%0A%20%20%20%20%20%20video%3A%20%2F%E7%9F%AD%E8%A7%86%E9%A2%91%7C%E8%A7%86%E9%A2%91%7Cvlog%7CVlog%7C%E6%8B%8D%E6%91%84%2F.test(text)%2C%0A%20%20%20%20%20%20quiz%3A%20%2F%E7%AD%94%E9%A2%98%7C%E7%AB%9E%E8%B5%9B%7C%E7%AB%9E%E7%AD%94%7C%E5%A4%A7%E8%B5%9B%7C%E6%8C%91%E6%88%98%E8%B5%9B%2F.test(text)%2C%0A%20%20%20%20%20%20daily%3A%20%2F(%E6%8D%90%E6%AD%A5%7C%E5%85%89%E7%9B%98%7C%E6%AF%8F%E6%97%A5%7C%E6%AF%8F%E5%A4%A9%7C%E8%BF%9E%E7%BB%ADs*d%2Bs*%E5%A4%A9)%2F.test(name%20%2B%20text)%2C%0A%20%20%20%20%20%20read%3A%20%2F%E9%98%85%E8%AF%BB%7C%E8%AF%BB%E4%B9%A6%7C%E5%85%B8%E7%B1%8D%7C%E5%85%B1%E8%AF%BB%2F.test(name%20%2B%20text)%2C%0A%20%20%20%20%20%20banAI%3A%20%2F%E4%B8%A5%E7%A6%81%5B%5E%E3%80%82%3B%EF%BC%9B%5D%7B0%2C10%7DAI%7CAI%5B%5E%E3%80%82%3B%EF%BC%9B%5D%7B0%2C6%7D%E5%88%9B%E4%BD%9C%7C%E7%A6%81%E6%AD%A2%5B%5E%E3%80%82%3B%EF%BC%9B%5D%7B0%2C10%7DAI%7C%E6%9D%9C%E7%BB%9D%5B%5E%E3%80%82%3B%EF%BC%9B%5D%7B0%2C10%7DAI%2F.test(text)%0A%20%20%20%20%7D%3B%0A%20%20%20%20var%20parts%20%3D%20%5B%5D%3B%0A%20%20%20%20if(f.quiz)%20parts.push('%E7%BA%BF%E4%B8%8A%E7%AD%94%E9%A2%98%2F%E5%8F%82%E8%B5%9B')%3B%0A%20%20%20%20if(wm)%20parts.push('%E5%86%99%3E%3D'%20%2B%20wm%5B1%5D%20%2B%20'%E5%AD%97')%3B%0A%20%20%20%20else%20if(f.read%20%26%26%20!f.quiz)%20parts.push('%E9%98%85%E8%AF%BB%2B%E6%84%9F%E6%82%9F')%3B%0A%20%20%20%20if(f.handwrite)%20parts.push('%E6%89%8B%E5%86%99%E6%8B%8D%E7%85%A7')%3B%0A%20%20%20%20if(f.video)%20parts.push('%E6%8B%8D%E8%A7%86%E9%A2%91%E5%8F%91%E5%B9%B3%E5%8F%B0')%3B%0A%20%20%20%20else%20if(f.photo%20%26%26%20!f.handwrite)%20parts.push('%E6%8B%8D%E7%85%A7%E7%89%87')%3B%0A%20%20%20%20if(f.daily)%20parts.push('%E6%AF%8F%E6%97%A5%E6%89%93%E5%8D%A1')%3B%0A%20%20%20%20if(!parts.length)%20parts.push('%E7%9C%8B%E8%A6%81%E6%B1%82%E5%8E%9F%E6%96%87')%3B%0A%20%20%20%20var%20wordLabel%20%3D%20wm%20%3F%20'%E2%89%A5'%20%2B%20wm%5B1%5D%20%2B%20'%E5%AD%97'%20%3A%20null%3B%0A%20%20%20%20var%20groupLabel%20%3D%20groups.length%20%26%26%20%2F%E5%AD%A6%E4%B9%A0%E9%80%9A%2F.test(text)%20%3F%20'%E5%AD%A6%E4%B9%A0%E9%80%9A%E7%8F%AD%E7%BA%A7%2F%E9%82%80%E8%AF%B7%E7%A0%81'%20%3A%20'QQ%E5%92%A8%E8%AF%A2%2F%E6%B4%BB%E5%8A%A8%E7%BE%A4'%3B%0A%20%20%20%20var%20completionLabel%20%3D%20%2F%E7%AD%94%E9%A2%98%7C%E7%AB%9E%E8%B5%9B%7C%E5%8F%82%E8%B5%9B%7C%E8%AF%BE%E7%A8%8B%7C%E8%80%83%E8%AF%95%7C%E6%8A%95%E7%A8%BF%7C%E4%BA%A4%E6%98%93%2F.test(name%20%2B%20content)%20%3F%20'%E4%BB%BB%E5%8A%A1'%20%3A%20'%E6%9D%90%E6%96%99'%3B%0A%20%20%20%20var%20rule%20%3D%20''%3B%0A%20%20%20%20(text.split(%2F%5B%E3%80%82%EF%BC%9B%3B%5Cn%5D%2F)).forEach(function(seg)%7B%0A%20%20%20%20%20%20seg%20%3D%20seg.trim()%3B%0A%20%20%20%20%20%20if(!rule%20%26%26%20%2F%E6%89%93%E5%8D%A1%7C%E7%B4%AF%E8%AE%A1%7C%E5%AE%8C%E6%88%90%7C%E6%8A%95%E7%A8%BF%7C%E5%BE%97d%2B%E5%88%86%7C%E5%BE%97d%2B%E5%88%86%2F.test(seg)%20%26%26%20%2F%E5%88%86%2F.test(seg)%20%26%26%20%2F%E5%BE%97%7C%E8%A1%A5%E7%AD%BE%7C%E7%A7%AF%E5%88%86%2F.test(seg)%20%26%26%20seg.length%20%3C%3D%2040%20%26%26%20%2Fd%2Bs*%E5%88%86%2F.test(seg))%20rule%20%3D%20seg%3B%0A%20%20%20%20%7D)%3B%0A%20%20%20%20var%20att%20%3D%20attachMap%20%26%26%20Array.isArray(attachMap%5Ba.id%5D)%20%3F%20attachMap%5Ba.id%5D%20%3A%20%5B%5D%3B%0A%20%20%20%20items.push(%7B%0A%20%20%20%20%20%20id%3A%20String(a.id)%2C%20name%3A%20name%2C%20st%3A%20st%2C%0A%20%20%20%20%20%20sd%3A%20%2B(a.sd%20!%3D%20null%20%3F%20a.sd%20%3A%20(a.startdate%20%7C%7C%200))%2C%0A%20%20%20%20%20%20ed%3A%20%2B(a.ed%20!%3D%20null%20%3F%20a.ed%20%3A%20(a.enddate%20%7C%7C%200))%2C%0A%20%20%20%20%20%20jed%3A%20%2B(a.jed%20!%3D%20null%20%3F%20a.jed%20%3A%20(a.joinenddate%20%7C%7C%200))%2C%0A%20%20%20%20%20%20addr%3A%20a.addr%20!%3D%20null%20%3F%20a.addr%20%3A%20(a.address%20%7C%7C%20'')%2C%0A%20%20%20%20%20%20tribe%3A%20a.tribe%20!%3D%20null%20%3F%20a.tribe%20%3A%20(a.tribename%20%7C%7C%20'')%2C%0A%20%20%20%20%20%20cat%3A%20a.cat%20!%3D%20null%20%3F%20a.cat%20%3A%20(a.catalog2name%20%7C%7C%20a.catalogname%20%7C%7C%20'')%2C%0A%20%20%20%20%20%20content%3A%20content%2C%20jointip%3A%20jointip%2C%20attach%3A%20att%2C%0A%20%20%20%20%20%20sign%3A%20a.sign%20%7C%7C%20(checked%20%26%26%20checked%5BString(a.id)%5D%20%3F%20'signed'%20%3A%20'unknown')%2C%0A%20%20%20%20%20%20sum%3A%20a.sum%20%26%26%20a.sum.flags%20%3F%20a.sum%20%3A%20%7B%20do%3A%20parts.join('%2B')%2C%20words%3A%20wm%20%3F%20%2Bwm%5B1%5D%20%3A%20null%2C%0A%20%20%20%20%20%20%20%20groups%3A%20groups%2C%20naming%3A%20naming%2C%20channels%3A%20channels%2C%20flags%3A%20f%2C%0A%20%20%20%20%20%20%20%20wordLabel%3A%20wordLabel%2C%20rule%3A%20rule%2C%20groupLabel%3A%20groupLabel%2C%20completionLabel%3A%20completionLabel%20%7D%0A%20%20%20%20%7D)%3B%0A%20%20%7D)%3B%0A%20%20items.sort(function(x%2C%20y)%7B%20return%20(x.ed%20%7C%7C%200)%20-%20(y.ed%20%7C%7C%200)%3B%20%7D)%3B%0A%20%20return%20items%3B%0A%7D%0A%20%20var%20items%3DbmCore(joins%2Cchk%2C%7B%7D)%3B%0A%20%20if(!items.length)%7B%20alert('%E6%B2%A1%E6%8A%93%E5%88%B0%E8%BF%9B%E8%A1%8C%E4%B8%AD%2F%E6%8A%A5%E5%90%8D%E4%B8%AD%E7%9A%84%E6%B4%BB%E5%8A%A8%EF%BC%88%E5%8F%AF%E8%83%BD%E6%98%AF%E8%B4%A6%E5%8F%B7%E6%B2%A1%E6%9C%89%E6%B4%BB%E8%B7%83%E4%BB%BB%E5%8A%A1%EF%BC%89')%3B%20return%3B%20%7D%0A%20%20var%20json%3DJSON.stringify(items)%3B%0A%20%20var%20b%3Dnew%20Blob(%5Bjson%5D%2C%7Btype%3A'application%2Fjson'%7D)%3B%0A%20%20var%20a%3Ddocument.createElement('a')%3B%20a.href%3DURL.createObjectURL(b)%3B%20a.download%3D'dmkj_panel_data.json'%3B%0A%20%20document.body.appendChild(a)%3B%20a.click()%3B%0A%20%20var%20copied%3Dfalse%3B%0A%20%20try%7B%20await%20navigator.clipboard.writeText(json)%3B%20copied%3Dtrue%3B%20%7Dcatch(e)%7B%7D%0A%20%20alert('%E2%9C%85%20%E5%B7%B2%E6%8A%93%E5%8F%96%20'%2Bitems.length%2B'%20%E4%B8%AA%E6%B4%BB%E8%B7%83%E4%BB%BB%E5%8A%A1%5Cn%5Cn%E2%91%A0%20%E6%96%87%E4%BB%B6%20dmkj_panel_data.json%20%E5%B7%B2%E5%BC%80%E5%A7%8B%E4%B8%8B%E8%BD%BD%5Cn'%2B(copied%3F'%E2%91%A1%20JSON%20%E5%B7%B2%E5%A4%8D%E5%88%B6%E5%88%B0%E5%89%AA%E8%B4%B4%E6%9D%BF%5Cn'%3A'')%2B'%5Cn%E2%86%92%20%E5%9B%9E%E5%88%B0%E6%B4%BB%E5%8A%A8%E9%9D%A2%E6%9D%BF%EF%BC%8C%E7%82%B9%E3%80%8C%E5%AF%BC%E5%85%A5%E3%80%8D%E9%80%89%E8%BF%99%E4%B8%AA%E6%96%87%E4%BB%B6%EF%BC%88%E6%88%96%E7%9B%B4%E6%8E%A5%E4%BB%8E%E5%89%AA%E8%B4%B4%E6%9D%BF%E5%AF%BC%E5%85%A5%EF%BC%89')%3B%0A%7Dcatch(e)%7B%20alert('%E6%8A%93%E5%8F%96%E5%A4%B1%E8%B4%A5%EF%BC%9A'%2B(e%26%26e.message%7C%7Ce)%2B'%5Cn%E8%AF%B7%E7%A1%AE%E8%AE%A4%E5%B7%B2%E7%99%BB%E5%BD%95%E5%88%B0%E6%A2%A6%E7%A9%BA%E9%97%B4%E7%BD%91%E9%A1%B5%E7%89%88%E5%90%8E%E5%86%8D%E7%82%B9%E4%B9%A6%E7%AD%BE')%3B%20%7D%0A%7D)()">🪐 到梦空间 → 面板数据</a>
+      <button class="aiopen" id="bmCopy">复制书签代码</button></div>
+    <div class="hstep">② 打开并登录 <b>www.5idream.net</b>（到梦空间网页版，任意页面都行）；</div>
+    <div class="hstep">③ 点书签栏里的「🪐 到梦空间 → 面板数据」——自动抓取你的活跃任务，下载 <b>dmkj_panel_data.json</b>；</div>
+    <div class="hstep">④ 回到本面板点「导入」选文件（或「从剪贴板导入」）。</div>
+    <div class="gnote">手机浏览器不方便装书签：在电脑上把 JSON 抓好后发给手机，或直接用文件导入。抓取只在到梦空间网页本身进行，不经过任何第三方。</div>
+  </details>
   <div class="gnote">没有数据文件？在 ZCode 里说「刷新活动面板」即可从到梦空间网页版导出一份。<br>
   面板只读展示快照，报名 / 签到 / 提交仍以【到梦空间 APP】为准。</div>
 </div></div>
@@ -119,7 +135,8 @@ function drawSub(){
     "数据快照: <b>"+fmtT(SNAP_AT,true)+"</b>(快照后新进展以APP为准) · 活跃任务 <b>"+DATA.length+"</b> 个"
     + '<button class="aiopen" id="btnSwap">⬆️ 更换数据</button>'
     + '<button class="aiopen" id="btnExport">⬇️ 导出数据</button>'
-    + '<button class="aiopen" id="btnWipe">🗑 清除我的数据</button>';
+    + '<button class="aiopen" id="btnClip">📋 剪贴板导入</button>'+
+    '<button class="aiopen" id="btnWipe">🗑 清除我的数据</button>';
   document.getElementById("btnSwap").onclick = function(){ document.getElementById("dataFile").click(); };
   document.getElementById("btnExport").onclick = function(){
     var b = new Blob([JSON.stringify(DATA)], {type:"application/json;charset=utf-8"});
@@ -136,9 +153,80 @@ function drawSub(){
     drawSub(); showGate(); toast("已清除本机数据");
   };
 }
+
+function bmCore(rows, checked, attachMap){
+  var items = [];
+  (rows || []).forEach(function(a){
+    var st = String(a.status != null ? a.status : (a.st != null ? a.st : ''));
+    if(['3','4','5'].indexOf(st) < 0) return;
+    var det = a.detail || {};
+    var content = a.content != null ? a.content : (det.content || '');
+    var jointip = a.jointip != null ? a.jointip : (det.jointip || '');
+    var name = a.name || '';
+    var text = content + '\n' + jointip;
+    var wm = text.match(/不少于\s*(\d+)\s*字/) || text.match(/(\d+)\s*字以上/) || text.match(/写\s*(\d+)\s*字/);
+    var groups = [], gs = {};
+    (text.match(/(?:QQ\s*群|群\d|加群|学习通(?:班级)?)[号]?\s*[:：]?\s*(\d{5,12})/g) || []).forEach(function(s){
+      var n = (s.match(/(\d{5,12})$/) || [])[1];
+      if(n && !gs[n]){ gs[n] = 1; groups.push(n); }
+    });
+    var naming = /姓名\s*[+＋]\s*学号/.test(text) ? '姓名+学号' : (/学号\s*[+＋]\s*姓名/.test(text) ? '学号+姓名' : null);
+    var channels = [];
+    [['群相册','QQ群相册'],['收集表','收集表'],['学习通','学习通'],['抖音','抖音'],['微博','微博'],['QQ空间','QQ空间']].forEach(function(p){
+      if(text.indexOf(p[0]) >= 0 && channels.indexOf(p[1]) < 0) channels.push(p[1]);
+    });
+    var f = {
+      handwrite: /手写/.test(text),
+      photo: /拍照|照片|图片|实拍|截图/.test(text),
+      video: /短视频|视频|vlog|Vlog|拍摄/.test(text),
+      quiz: /答题|竞赛|竞答|大赛|挑战赛/.test(text),
+      daily: /(捐步|光盘|每日|每天|连续s*d+s*天)/.test(name + text),
+      read: /阅读|读书|典籍|共读/.test(name + text),
+      banAI: /严禁[^。;；]{0,10}AI|AI[^。;；]{0,6}创作|禁止[^。;；]{0,10}AI|杜绝[^。;；]{0,10}AI/.test(text)
+    };
+    var parts = [];
+    if(f.quiz) parts.push('线上答题/参赛');
+    if(wm) parts.push('写>=' + wm[1] + '字');
+    else if(f.read && !f.quiz) parts.push('阅读+感悟');
+    if(f.handwrite) parts.push('手写拍照');
+    if(f.video) parts.push('拍视频发平台');
+    else if(f.photo && !f.handwrite) parts.push('拍照片');
+    if(f.daily) parts.push('每日打卡');
+    if(!parts.length) parts.push('看要求原文');
+    var wordLabel = wm ? '≥' + wm[1] + '字' : null;
+    var groupLabel = groups.length && /学习通/.test(text) ? '学习通班级/邀请码' : 'QQ咨询/活动群';
+    var completionLabel = /答题|竞赛|参赛|课程|考试|投稿|交易/.test(name + content) ? '任务' : '材料';
+    var rule = '';
+    (text.split(/[。；;\n]/)).forEach(function(seg){
+      seg = seg.trim();
+      if(!rule && /打卡|累计|完成|投稿|得d+分|得d+分/.test(seg) && /分/.test(seg) && /得|补签|积分/.test(seg) && seg.length <= 40 && /d+s*分/.test(seg)) rule = seg;
+    });
+    var att = attachMap && Array.isArray(attachMap[a.id]) ? attachMap[a.id] : [];
+    items.push({
+      id: String(a.id), name: name, st: st,
+      sd: +(a.sd != null ? a.sd : (a.startdate || 0)),
+      ed: +(a.ed != null ? a.ed : (a.enddate || 0)),
+      jed: +(a.jed != null ? a.jed : (a.joinenddate || 0)),
+      addr: a.addr != null ? a.addr : (a.address || ''),
+      tribe: a.tribe != null ? a.tribe : (a.tribename || ''),
+      cat: a.cat != null ? a.cat : (a.catalog2name || a.catalogname || ''),
+      content: content, jointip: jointip, attach: att,
+      sign: a.sign || (checked && checked[String(a.id)] ? 'signed' : 'unknown'),
+      sum: a.sum && a.sum.flags ? a.sum : { do: parts.join('+'), words: wm ? +wm[1] : null,
+        groups: groups, naming: naming, channels: channels, flags: f,
+        wordLabel: wordLabel, rule: rule, groupLabel: groupLabel, completionLabel: completionLabel }
+    });
+  });
+  items.sort(function(x, y){ return (x.ed || 0) - (y.ed || 0); });
+  return items;
+}
+function normItem(a){
+  if(a.sum && a.sum.flags) return Object.assign({ attach: [] }, a, { attach: Array.isArray(a.attach) ? a.attach : [] });
+  return bmCore([a], a.sign === 'signed' ? {} : null, {})[0] || a;
+}
 function applyData(arr){
-  if(!Array.isArray(arr) || !arr.length || !arr[0] || !arr[0].id || !arr[0].sum) throw new Error("bad json");
-  DATA = arr; SNAP_AT = Date.now();
+  if(!Array.isArray(arr) || !arr.length || !arr[0] || !arr[0].id) throw new Error("bad json");
+  DATA = arr.map(normItem); SNAP_AT = Date.now();
   ls(K_DATA, JSON.stringify(arr));
   ls(K_SNAPAT, String(SNAP_AT));
   drawSub(); hideGate(); refresh();
@@ -154,7 +242,26 @@ function loadData(){
     return true;
   }catch(e){ return false; }
 }
+function importClip(){
+  navigator.clipboard.readText().then(function(t){
+    try{ applyData(JSON.parse(t)); toast("已从剪贴板导入 ✓ 只存这台浏览器"); }
+    catch(e){ toast("剪贴板内容不是有效的活动数据 JSON"); }
+  }, function(){ toast("浏览器没给剪贴板权限，请用「导入文件」方式"); });
+}
 document.getElementById("btnImportGate").onclick = function(){ document.getElementById("dataFile").click(); };
+document.getElementById("btnClipGate").onclick = importClip;
+document.getElementById("btnClip").onclick = importClip;
+document.querySelectorAll(".bm").forEach(function(a){
+  a.addEventListener("click", function(e){
+    if(location.hostname.indexOf("5idream") < 0){
+      e.preventDefault();
+      toast("这个书签是装到浏览器里用的：把链接拖到书签栏，再到 www.5idream.net 页面上点它");
+    }
+  });
+});
+var bmSrc = decodeURIComponent(document.getElementById("bmLink").getAttribute("href").replace(/^javascript:/, ""));
+var bc = document.getElementById("bmCopy");
+if(bc) bc.addEventListener("click", function(){ copyText(bmSrc, "书签代码已复制 ✓ 新建书签 → 粘到网址栏即可"); });
 document.getElementById("dataFile").onchange = function(e){
   var f = e.target.files[0];          // 先快照 File 再清 value，避免 FileList 被连带清空
   e.target.value = "";
