@@ -1,0 +1,338 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>到梦空间 · 我的活动面板</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:#f6f4ef;color:#333;padding:18px}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:22px;color:#8a6d1f}
+.sub{color:#999;font-size:12px;margin:6px 0 14px}
+.sub b{color:#8a6d1f}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.s{background:#fff;border-radius:12px;padding:10px 14px;font-size:12px;color:#888;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.s b{display:block;font-size:22px;color:#c8961e}
+.s.warn b{color:#e05d3d}
+.airow{margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#copyBrief,#copyFiltered{background:#f2bb63;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:600;color:#5d4a10;cursor:pointer}
+#copyBrief:hover,#copyFiltered:hover{background:#e8ad45}
+#copyFiltered{background:#fff;border:1px solid #e0d9c8}
+.aiopen{background:#fff;border:1px solid #e0d9c8;border-radius:10px;padding:8px 14px;font-size:13px;color:#555;cursor:pointer}
+.aiopen:hover{border-color:#f2bb63;color:#8a6d1f}
+.aihint{color:#999;font-size:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chip{background:#fff;border:1px solid #e0d9c8;border-radius:16px;padding:6px 14px;font-size:13px;color:#666;cursor:pointer}
+.chip.on{background:#f2bb63;border-color:#f2bb63;color:#5d4a10;font-weight:600}
+.search{width:100%;padding:10px 14px;border:1px solid #e0d9c8;border-radius:10px;font-size:14px;margin-bottom:16px;background:#fff}
+.sec{margin-bottom:24px}
+h2{font-size:16px;color:#6b5510;border-left:4px solid #f2bb63;padding-left:10px;margin-bottom:10px}
+h2 .cnt{color:#c8961e;font-size:14px}
+.card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.card.done{opacity:.55}
+.card .c-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.c-name{font-weight:600;font-size:14px;line-height:1.5}
+.sumline{background:#faf7ee;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12.5px;line-height:1.8;color:#6b5510}
+.sumline b{color:#8a6d1f}
+.c-meta{display:flex;flex-wrap:wrap;gap:4px 16px;color:#888;font-size:12px;margin-top:6px}
+.b{font-size:11px;padding:2px 8px;border-radius:8px;white-space:nowrap}
+.b.st3{background:#e8f6e0;color:#4a8c2c}.b.st5{background:#fff3e0;color:#c8781e}
+.b.sig{background:#eef4e2;color:#4a8c2c}.b.sig0{background:#fbeedd;color:#b06a1a}
+.b.sub1{background:#e8f6e0;color:#4a8c2c}.b.sub0{background:#fff0f0;color:#c05a3a}
+.b.urgent{background:#fdeae4;color:#e05d3d;font-weight:700}
+.b.daily{background:#eef4ff;color:#3a6fd8}
+.b.ban{background:#fde8e8;color:#c0392b}
+.b.att{background:#eef4ff;color:#3a6fd8}
+.askai{background:#eef4ff;color:#3a6fd8;border:none;border-radius:8px;padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap}
+.askai:hover{background:#dfe9ff}
+.check{border:1px solid #9bbf65;background:#f4f9ec;color:#4a7c1e;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer}
+.check.on{background:#9bbf65;color:#fff;border-color:#9bbf65}
+details.req{margin-top:8px;background:#faf7ee;border-radius:8px;padding:6px 10px;font-size:12px}
+details.req summary{cursor:pointer;color:#8a6d1f;font-weight:600;outline:none}
+.rt{color:#8a6d1f;font-weight:600;margin-top:6px}
+.rc{white-space:pre-wrap;line-height:1.7;color:#555;margin-top:2px}
+.empty{color:#aaa;font-size:13px;background:#fff;border-radius:12px;padding:14px}
+.todayitem{display:flex;align-items:flex-start;gap:10px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.todayitem.done{opacity:.5}
+.todayitem .t-main{flex:1}
+.todayitem .t-act{color:#6b5510;font-weight:600;font-size:13.5px}
+.todayitem .t-meta{color:#999;font-size:12px;margin-top:3px}
+.todayitem .t-dead{color:#e05d3d;font-weight:700}
+.note{border-left:4px solid #f2bb63}
+footer{color:#aaa;font-size:11px;line-height:1.8;margin-top:30px}
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 22px;border-radius:20px;font-size:13px;display:none;z-index:9;max-width:80vw}
+.hide{display:none}
+button:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid #8a6d1f;outline-offset:3px}
+.t-main{min-width:0}.sumline,.rc,.t-meta{overflow-wrap:anywhere}.todayitem .check{flex-shrink:0}
+@media(max-width:600px){body{padding:12px}.todayitem{flex-wrap:wrap}.todayitem .t-main{flex-basis:100%}.s{flex:1 1 135px}.airow button{max-width:100%}.c-head>span:last-child{display:flex;gap:4px;flex-wrap:wrap}}
+</style></head><body><div class="wrap">
+<h1>到梦空间 · 我的活动面板</h1>
+<div class="sub"><b>程博(54515427)</b> · 数据快照: <b>2026-10-03 21:53</b>(快照后新进展以APP为准) · 活跃任务 18 个 · 历年报名 688 个</div>
+<div class="airow"><button id="copyBrief">📋 复制完整简报</button><button id="copyFiltered">📋 复制当前筛选的提示词</button>
+<span class="aihint">直达 →</span><button class="aiopen" data-u="https://www.doubao.com/chat/">豆包</button><button class="aiopen" data-u="https://kimi.moonshot.cn/">Kimi</button><button class="aiopen" data-u="https://chat.deepseek.com/">DeepSeek</button><button class="aiopen" data-u="https://yiyan.baidu.com/">文心</button><button class="aiopen" data-u="https://yuanbao.tencent.com/">元宝</button><button class="aiopen" data-u="https://www.tongyi.com/">通义</button><button class="aiopen" data-u="https://chatgpt.com/">ChatGPT</button><button class="aiopen" data-u="https://claude.ai/new">Claude</button><button class="aiopen" data-u="">WorkBuddy</button><button class="aiopen" data-u="">ZCode</button>
+<span class="aihint">点AI按钮=复制简报并新标签页打开(弹窗被拦会提示,不会丢内容)</span></div>
+<div class="stats" id="stats"></div>
+<div class="filters" id="filters">
+  <button type="button" class="chip on" data-f="all">全部</button>
+  <button type="button" class="chip" data-f="urgent">⏰即将截止(3天内)</button>
+  <button type="button" class="chip" data-f="daily">🔁每日打卡</button>
+  <button type="button" class="chip" data-f="todo">📌待提交/待确认</button>
+  <button type="button" class="chip" data-f="done">✅已标记（含今日打卡）</button>
+</div>
+<input class="search" id="q" placeholder="🔍 搜索:活动名 / 要求内容 / 主办方 / QQ群号 / 学习通号…">
+<div class="sec"><h2>🎯 今天要做什么 <span class="cnt" id="todayCnt"></span></h2><div id="todayList"></div>
+<div class="card note"><div class="c-note" style="margin-top:0">勾选是本人记录，保存在本机浏览器；今日打卡与材料提交分别记录，可再次点击撤销。清除浏览器数据会重置，实际状态以APP为准。</div></div></div>
+<div class="sec"><h2>活跃任务 <span class="cnt" id="cardCnt"></span></h2><div id="cardList"></div></div>
+<div class="sec"><h2>我管理的活动(进行中/报名中) <span class="cnt">0</span></h2><div class="empty">共 0 个,详情在APP管理端查看</div></div>
+<footer>本面板只读展示你账号的数据快照,不执行任何报名/签到/修改操作。<br>
+报名、签到、上传附件请在【到梦空间 APP】完成;更新数据:登录网页版后点书签按钮,或在 ZCode 里说"刷新活动面板"。</footer>
+<div id="toast"></div>
+<script type="text/plain" id="aiBrief">简报由当前活动数据动态生成。</script>
+<script id="data" type="application/json">[{"id":"16503248","name":"数理学院“明月未远，月叙中秋”书与诗主题文字征集活动","st":"5","sd":1790985600000,"ed":1791270000000,"jed":1790947800000,"addr":"线上","tribe":"南华大学数理学院阅读推广部","cat":"参加文体类活动、讲座","content":"中秋佳节落幕，但月色依旧。有人阖家围坐共话团圆，也有异乡学子望月寄思。阅读推广部借月色余温，邀请同学们以书、以诗，书写属于自己的中秋记忆，在文字中回味团圆，安放远方的思念。","jointip":"六、 活动具体流程\n（1）在到梦空间发布本次活动，并创建 QQ 群:1124777359；\n（2）通知各班班级负责人转发活动通知，动员班级同学积极投稿参与，引导报名成功的同学加入活动 QQ 群；\n（3）参与者选取一本书或者一句诗词，围绕 “团圆” 或者 “远方” 主题书写中秋回忆与感悟，字数不少于500字，内容积极健康，必须为原创，杜绝抄袭，可自愿附上月亮、夜景实拍照片，并将作品上传至 QQ 群相册，命名格式：学号 + 姓名。\n七、 注意事项\n（1）未上交材料或材料不合格的同学不予发分，但被录取成功的同学仍需按时签到，普通作品发1分，优秀作品发2分。\n（2）本次活动签到码将于活动开始后公布于到梦空间，请大家留意通知并及时完成签到。\n（3）将对应图片上传至活动群，字数不得少于500字。\n（4）非原创作品不予发分。","attach":[],"sign":"signed","sum":{"do":"选书或诗词写≥500字感悟；实拍照片可自愿附上","words":null,"groups":["1124777359"],"naming":"学号+姓名","channels":["QQ群相册"],"flags":{"handwrite":false,"photo":true,"video":false,"quiz":false,"daily":false,"read":true,"banAI":false},"wordLabel":"≥500字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16498807","name":"数理学院“月满中秋·饼寄相思”活动","st":"5","sd":1790816400000,"ed":1791334800000,"jed":1790812800000,"addr":"线上","tribe":"数理学院团委实践部","cat":"参加文体类活动、讲座","content":"中秋是中华民族的传统佳节，月饼承载着团圆思乡的美好寓意。为感受中秋传统民俗魅力，丰富同学们的校园课余生活，特举办本次月饼分享主题活动。同学们可以分享自己手中的月饼，品味月饼滋味，诉说中秋感悟，体会月饼背后团圆的文化内涵。借此感受传统节日温度，抒发思乡情怀，增强同学们对传统节日的认同感，营造温馨和睦的中秋校园氛围，邀请同学们踊跃参与。","jointip":"本次活动为线上自主进行，负责人将在到梦空间发布活动，同学们报名参与，报名活动的同学可加入QQ咨询群902633823获取相关信息。\n参与同学结合自己品尝的月饼，手写完成不少于500字的中秋心得，心得需围绕月饼滋味、中秋习俗、思乡感悟展开，建立群相册，以姓名＋学号命名，上传手写作品以及月饼图片。\n 注意事项\n（1）未上交材料或材料不合格的同学不予发分，但被录取成功的同学仍需按时签到，普通作品发1分，优秀作品发2分。\n（2）本次活动签到码将于活动开始后公布于到梦空间，请大家留意通知并及时完成签到。\n（3）观后感和截图须发送至对应活动群，心得不得少于500.字。\n（4）未提交图片或图片少于两张的同学不予发分。\n（5）活动报名方式为报名制，报名先到先得，报名人数达到预设的最大参加人数则无法继续报名，报名成功者即可参加活动。","attach":[],"sign":"signed","sum":{"do":"手写≥500字心得，上传手写作品和月饼图片（至少两张图片）","words":null,"groups":["902633823"],"naming":"姓名+学号","channels":["QQ群相册"],"flags":{"handwrite":true,"photo":true,"video":false,"quiz":false,"daily":false,"read":false,"banAI":false},"wordLabel":"≥500字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16508204","name":"南华大学图书馆2026“阅红色典籍·寻红色印记”打卡活动","st":"5","sd":1790827200000,"ed":1791381600000,"jed":1790826900000,"addr":"线上","tribe":"南华大学图书馆","cat":"课外阅读","content":"1、引导同学们寻访本地红色建筑、走进当地图书馆，了解地方红色历史，感悟本土红色文化底蕴。\n2、鼓励同学们阅读红色书籍，从红色典籍中汲取精神力量，厚植爱国情怀，树立青年责任担当。\n3、丰富同学们国庆假期生活，走出宿舍，拓展眼界，培养阅读习惯，提升人文思想素养。\n4、推动红色文化入脑入心，让青年在实地打卡与文字感悟中传承红色基因。","jointip":"1.时间：2026年10月1日12:00--2026年10月7日22:00\n2.签到方式：线上\n3.请报名参加活动的同学加入学习通98225277（邀请码）及时了解活动相关资讯。\n4.活动介绍：a. 加入学习通班级：98225277 b. 基础参与：完成实地打卡（红色建筑/当地图书馆）并在学习通作业提交照片，即可获得积分1分。c．进阶任务：在打卡基础上，撰写不少于800字红色书籍观后感，观后感可结合打卡地的红色历史，谈阅读体会与个人思考，即可获得2学分。d.作业须按时提交，超过时间不予发分。\n注意事项：\n1. 全体同学无特殊情况不予请假。\n 2. 作业须按时提交，超过时间不予发分。\n3. 活动最终解释权归主办方所有。","attach":[],"sign":"signed","sum":{"do":"实地打卡并交照片得1分；另交≥800字红色书籍观后感可得2分","words":null,"groups":["98225277"],"naming":null,"channels":["学习通作业"],"flags":{"handwrite":false,"photo":true,"video":false,"quiz":false,"daily":false,"read":true,"banAI":false},"wordLabel":"进阶任务≥800字","rule":"","groupLabel":"学习通班级/邀请码","completionLabel":"材料"}},{"id":"16502821","name":"数理学院“赓续红色血脉，礼赞盛世中华”主题征文活动","st":"5","sd":1790899200000,"ed":1791381600000,"jed":1790863200000,"addr":"线上","tribe":"数理学院团委组织部","cat":"课外写作","content":"金秋十月，举国同庆。国庆节是缅怀先辈奋斗历程、厚植爱国情怀的重要节点。本次活动结合国庆契机，开展红色观影与实地研学。带领同学们学习革命历史与建国历程，感悟先辈无私奉献的精神，厚植爱党爱国情怀。创新学习形式，提升青年思辨能力。引导青年传承红色血脉，把爱国之情化为奋进动力，勇担时代使命，以青春献礼祖国华诞。","jointip":"活动流程：\n1、报名活动后进入QQ活动群:951089154。\n2、参加活动的同学围绕“赓续红色血脉，礼赞盛世中华”主题自主创作征文作品，结合国庆情结、红色精神与家国感悟进行书写，手写不少于600字的征文。\n3、在QQ活动群里以“学号+姓名”的格式创建群相册，并将征文拍照上传至群相册里。\n4、活动结束后由活动负责人整理材料，完成分数发放（征文内容丰富且深刻的发2分，其余1分），最后确认无误后完结活动。\n注意事项：\n1、请同学们按时签到，未签到及未按要求提交材料的同学不发分，活动结束后不补发分。\n2、如有疑问，可在活动咨询群内提问，负责人在内解答。\n3、严禁抄袭、盗图及AI创作，否则签退。\n4、最终解释权归数理学院团委组织部所有。","attach":[],"sign":"signed","sum":{"do":"本人手写≥600字征文，拍照上传","words":null,"groups":["951089154"],"naming":"学号+姓名","channels":["QQ群相册"],"flags":{"handwrite":true,"photo":true,"video":false,"quiz":false,"daily":false,"read":false,"banAI":true},"wordLabel":"≥600字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16510203","name":"数理学院“赓续红色血脉，讲述家长红色故事”主题分享活动","st":"5","sd":1790994600000,"ed":1791640800000,"jed":1790989200000,"addr":"线上","tribe":"数理学院团委实践部","cat":"思想引领类报告、讲座","content":"金秋十月，举国欢庆祖国华诞。祖国各地留存大量红色旧址、英雄事迹，每个家乡都承载着独特红色记忆。为喜迎国庆，厚植青年家国情怀，突破场地限制，开展线上红色故事分享，鼓励同学们利用国庆假期发掘家乡红色资源，感悟革命精神，营造学院爱国氛围。","jointip":"本次活动为线上自主进行，负责人将在到梦空间发布活动，同学们报名参与，报名活动的同学可加入QQ咨询群621887235获取相关信息。\n参与者提交音频/视频+文字稿件。讲述家乡红色人物、革命旧址、红色典故。形式二选一：①音频：时长2‑4分钟，普通话录制，声音清晰；②短视频：2‑4分钟，可以配图片、旧址实拍画面，不需要复杂剪辑。\n七、 注意事项\n（1）未上交材料或材料不合格的同学不予发分，但被录取成功的同学仍需按时签到，普通作品发1分，优秀作品发2分。\n（2）本次活动签到码将于活动开始后公布于到梦空间，请大家留意通知并及时完成签到。\n（3）活动报名方式为报名制，报名先到先得，报名人数达到预设的最大参加人数则无法继续报名，报名成功者即可参加活动。","attach":[],"sign":"signed","sum":{"do":"提交2–4分钟音频或视频（二选一）及文字稿件","words":null,"groups":["621887235"],"naming":null,"channels":["提交渠道见群通知"],"flags":{"handwrite":false,"photo":false,"video":true,"quiz":false,"daily":false,"read":false,"banAI":false},"wordLabel":null,"rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16509092","name":"数理学院“数据忆长征，笔墨叙南华”活动","st":"3","sd":1791342000000,"ed":1791712800000,"jed":1791338400000,"addr":"线上","tribe":"数理学院学生会心理部","cat":"参加文体类活动、讲座","content":"一.活动背景\n2026年是红军长征胜利90周年，又恰逢南华大学校庆。长征两万五千里行军里程、行军时长等海量行军数据背后，蕴藏着先辈攻坚克难的奋斗底色；回望南华大学校史，老一辈数理方向的教师白手起家，扎根三尺讲台，筚路蓝缕建设基础学科，在办学路上走出了属于南华的“新长征”。\n作为信息与计算科学专业的青年学子，我们以数学、数据分析、计算技术为专业武器。为落实“踏新时代长征路，谱青春南华情”主题团日活动相关要求，深挖红色长征历史与本校校史教育内涵，立足本专业数理计算特色，特策划本次线上作品征集活动，引导同学们在数据之中读懂历史，在校史故事之中汲取前行力量。\n    二.活动目的\n1、依托长征行军里程、行军时长等历史数据与南华老一辈数理教师建设学科的校史故事，将红色长征精神教育与南华校史校情教育有机融合，加深团员青年对于校史的理解，厚植爱校荣校的思想情怀。\n2、立足信息与计算科学专业特色，鼓励同学们运用数据分析、计算、可视化绘图等专业本领解读历史，实现专业学习与思想引领相结合，提升同学们的专业认同感。\n3、以线上作品征集的形式，不需要集中开会，动员广大团员自主思考创作，引导青年学子思考新时代下如何用好计算、数据分析的本领，走好属于我们当代青年的新时代长征路，以青年担当传承长征奋斗精神。\n三．活动时间\n（一）报名时间\n2026年10月3日-2026年10月7日\n（二）活动时间\n2026年10月7日-2026年10月11日\n四、活动地点\n线上活动\n","jointip":"五、活动对象\n数理学院全体在校学生\n六、活动内容及要求\n（一）活动要求 \n1.结合长征行军的数据（里程、行军天数）、南华校史里面老一辈数理教师建设学科的故事，作为信息与计算科学专业学生，写下感悟（800字），思考如何用好计算、数据分析的本领走好属于当代青年的新长征路。\n2.将手写的感悟照片上传至群相册（以学号+姓名命名），活动咨询群：1106598829。\n（二）奖项设置\n1.活动总录取人数为200人。\n2.活动积分设置：\n文化艺术与身心发展：\n优秀积2分（50人）；\n普通积1分（150人）。\n3.注意事项\n（1）未按照要求完成活动及未签到人员不发放积分；\n（2）本次活动解释权归数理学院团委心理部所有；\n（3）报名先到先得，报名人数达到预设的最大参与人则无法继续报名，报名成功者即可参加活动。","attach":[],"sign":"unknown","sum":{"do":"手写800字感悟，拍照上传","words":null,"groups":["1106598829"],"naming":"学号+姓名","channels":["QQ群相册"],"flags":{"handwrite":true,"photo":true,"video":false,"quiz":false,"daily":false,"read":false,"banAI":false},"wordLabel":"800字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16508731","name":"数理学院“寻访红色遗址，赓续青年初心”活动","st":"3","sd":1791590400000,"ed":1791727200000,"jed":1791554400000,"addr":"线下","tribe":"数理学院团委组织部","cat":"个人发起社会活动","content":"为喜迎国庆，深化青年学生红色教育，引导同学们感悟革命先辈奋斗历程，特组织本次红色遗址参观活动。本次活动旨在带领青年学子寻访红色遗址，感悟革命精神，厚植爱国爱党情怀。引导广大青年坚定理想信念，凝聚青年担当。","jointip":"活动流程：\n1、报名活动后进入QQ活动群:821290833。\n2、参加活动的同学利用课余或国庆假期，自行前往自己选定的红色遗址参观。实地参观展馆、历史遗迹，聆听讲解、学习革命史料，认真感悟红色故事，同步拍摄不少于3张现场照片需要本人出镜、记录学习心得（不少于200字），自觉遵守场馆规定，注意出行安全。\n3、在QQ活动群里以“学号+姓名”的格式创建群相册，按时上传提交参观照片、文字感悟等活动材料。\n4、活动结束后由活动负责人整理材料，完成分数发放，最后确认无误后完结活动。\n注意事项：\n1、请同学们按时签到，未签到及未按要求提交材料的同学不发分，活动结束后不补发分。\n2、如有疑问，可在活动咨询群内提问，负责人在内解答。\n3、严禁抄袭、盗图及AI创作，否则签退。\n4、最终解释权归数理学院团委组织部所有。","attach":[],"sign":"unknown","sum":{"do":"本人实地参观，拍≥3张现场照片（本人出镜），写≥200字心得","words":null,"groups":["821290833"],"naming":"学号+姓名","channels":["QQ群相册"],"flags":{"handwrite":false,"photo":true,"video":false,"quiz":false,"daily":false,"read":false,"banAI":true},"wordLabel":"≥200字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16508680","name":"数理学院“镜头绘盛世，红心庆华诞”主题摄影活动","st":"3","sd":1791590400000,"ed":1791727200000,"jed":1791554400000,"addr":"线上","tribe":"数理学院团委组织部","cat":"参加文体类活动、讲座","content":"  为喜迎国庆，厚植青年学子爱国情怀，引导广大青年学生感悟国家发展成就，组织部特开展本次主题摄影活动。本次活动旨在丰富校园文化生活，激发大学生爱国热情。引导青年学子在观察与拍摄中感悟时代巨变，展现新时代青年昂扬向上的精神风貌。进一步激励青年学子把爱国情转化为勤学奋进的实际行动。","jointip":"活动流程：\n1、报名活动后进入QQ活动群:1127550688。\n2、参加活动的同学围绕“国庆”主题自主进行拍摄不少于3张照片或1份视频（视频时长不少于1min)，并为照片/视频附上不少于150字的讲解。\n3、在QQ活动群里以“学号+姓名”的格式创建群相册，并将摄影作品及讲解上传至群相册里。\n4、活动结束后由活动负责人整理材料，完成分数发放（作品优秀的发2分，其余1分），优秀作品将在“数理官保”中展示，最后确认无误后完结活动。\n注意事项：\n1、请同学们按时签到，未签到及未按要求提交材料的同学不发分，活动结束后不补发分。\n2、如有疑问，可在活动咨询群内提问，负责人在内解答。\n3、严禁抄袭、盗图及AI创作，否则签退。\n4、最终解释权归数理学院团委组织部所有。","attach":[],"sign":"unknown","sum":{"do":"本人拍≥3张照片或≥1分钟视频（二选一），附≥150字讲解","words":null,"groups":["1127550688"],"naming":"学号+姓名","channels":["QQ群相册"],"flags":{"handwrite":false,"photo":true,"video":true,"quiz":false,"daily":false,"read":false,"banAI":true},"wordLabel":"≥150字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16446119","name":"南华大学“我的开学印记·用镜头定格青春”活动","st":"5","sd":1790465100000,"ed":1791813240000,"jed":1790430900000,"addr":"新浪微博线上","tribe":"南华大学微博协会","cat":"参加文体类活动、讲座","content":"2026年微博校园联合高校开展“我的开学印记·用镜头定格青春”公益助农活动，赢取地区特色助农水果，为乡村振兴注入新动力。同时同学们定格校园初遇的美好瞬间，记录成长新起点。在参与打卡、互动分享的过程中感受校园氛围，增强归属感与参与感，拉近与校园的距离，激发对大学生活的期待，留下珍贵的入学回忆。","jointip":"1.报名学生进入学习通群（一群邀请码：40684753  二群邀请码：94191684），自行浏览群公告、群文件，群内会有完整流程图。不懂可@管理员在群内解答。\n2.在登录且正确填写内容后投稿，投稿3次得一分文化艺术与身心发展，投稿5次以上得两分文化艺术与身心发展，自登录日起七天内必须完成至少3次。","attach":[],"sign":"signed","sum":{"do":"自登录日起七天内完成≥3次投稿；3次得1分，5次以上得2分","words":null,"groups":["40684753","94191684"],"naming":null,"channels":["微博投稿（流程见学习通群公告）"],"flags":{"handwrite":false,"photo":false,"video":false,"quiz":false,"daily":false,"read":false,"banAI":false},"wordLabel":null,"rule":"","groupLabel":"学习通班级/邀请码","completionLabel":"任务"}},{"id":"16437798","name":"数理学院“支付宝捐步志愿公益”活动","st":"5","sd":1789862700000,"ed":1792022400000,"jed":1789862400000,"addr":"南华大学雨母校区","tribe":"数理学院团委青年志愿者工作部","cat":"参加各类志愿服务活动","content":"随着大学生课余生活丰富，多数同学久坐学习、缺乏运动，身体素质下降。同时当代青年应积极践行社会责任、参与社会公益。支付宝公益捐步是零成本、轻量化、全民可参与的公益活动，通过日常走路即可积累步数、兑换公益金额、助力乡村助学、环保公益等项目。为引导同学们走出宿舍、坚持运动、积极向善，特开展本次支付宝捐步公益活动。","jointip":"三、活动时间\n（一）报名时间\n2026年9月18日-2026年9月20日\n（二）活动时间\n2026年9月20日-10月15日\n四、活动地点\n南华大学雨母校区\n五、活动对象\n数理学院全体学生\n六、活动内容及要求\n（一）活动要求\n1.发布活动通知，说明活动规则、参与方式、打卡要求。\n2.加入691833677活动打卡群，统一收集每日截图。\n3.提前说明支付宝捐步规则：每日步数可兑换公益币，公益币可捐助对应公益项目，并且每日打卡步数不得少于8000步\n（二）活动开展\n1.同学们每日坚持步行、锻炼，积累运动步数。\n2.每日完成支付宝捐步捐助操作，完成公益捐赠。\n3.每晚固定时间在群内上传当日捐步完成截图，完成当日打卡。\n4.工作人员每日统计打卡名单，记录缺勤、漏打卡情况。\n（三）活动总结\n1.统计全体参与者总打卡天数、参与率。\n2.整理活动照片、截图素材，撰写活动总结与推文宣传。\n（四）奖项设置\n1.活动总录取人数为200人。\n2.活动积分设置：\n志愿服务与公益劳动分：打卡7天1分；打卡14天2分；打卡21天3分。\n3.注意事项\n（1）未按照要求完成活动及未签到人员不发放积分；\n（2）本次活动解释权归数理学院青年志愿者工作部所有；\n（3）报名先到先得，报名人数达到预设的最大参与人则无法继续报名，报名成功者即可参加活动。\n十、注意事项\n\n1. 严禁刷步、虚假截图，一经发现取消活动参与资格。\n\n2. 自愿参与、量力而行，不剧烈运动，保障自身安全。\n\n3. 按时打卡，逾期不补卡，保证活动公平公正。","attach":[],"sign":"signed","sum":{"do":"每日≥8000步，完成支付宝捐步，每晚上传当日截图","words":null,"groups":["691833677"],"naming":null,"channels":["QQ打卡群"],"flags":{"handwrite":false,"photo":true,"video":false,"quiz":false,"daily":true,"read":false,"banAI":false},"wordLabel":null,"rule":"打卡7/14/21天分别得1/2/3分；逾期不补卡","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16437780","name":"数理学院“光盘行动打卡”活动","st":"5","sd":1790049600000,"ed":1792022400000,"jed":1790035200000,"addr":"南华大学雨母校区","tribe":"数理学院团委青年志愿者工作部","cat":"参加各类志愿服务活动","content":"勤俭节约是中华民族传统美德。当前校园仍存在食物浪费、剩饭剩菜、点餐过量等现象，节约粮食意识有待加强。为积极响应国家“坚决制止餐饮浪费行为、厉行勤俭节约”的号召，引导学生养成珍惜粮食、文明就餐的良好习惯，特开展本次光盘行动每日打卡活动。","jointip":"四、活动地点\n南华大学雨母校区\n五、活动对象\n数理学院全体学生\n六、活动内容及要求\n（一）活动要求\n1.发布活动正式通知，明确打卡规则、活动意义。\n2.加入光盘行动打卡群691833677，统一收集每日光盘照片。\n3.工作人员提前熟悉打卡统计流程。\n（二）中期开展\n1.参与者每日三餐按需取餐，做到不剩饭、不浪费、吃光餐食。\n2.每餐完成光盘后拍摄干净餐盘照片（无浪费、无剩菜）。\n3.每日在规定时间内上传照片完成当日打卡。\n4.部门成员每日统计打卡情况，记录全勤、缺卡人员。\n（三）奖项设置\n1.活动总录取人数为200人。\n2.活动积分设置：\n志愿服务与公益劳动分：打卡7天1分；打卡14天2分；打卡21天3分。\n3.注意事项\n（1）未按照要求完成活动及未签到人员不发放积分；\n（2）本次活动解释权归数理学院青年志愿者工作部所有；\n（3）报名先到先得，报名人数达到预设的最大参与人则无法继续报名，报名成功者即可参加活动。\n十、注意事项\n\n1. 禁止盗用他人照片、重复用旧图打卡，一经发现取消资格。\n\n2. 鼓励真实就餐、按需取餐，不刻意少吃、不刻意节食。\n\n3. 坚持自愿参与、正向引导、文明打卡原则。","attach":[],"sign":"signed","sum":{"do":"每餐拍真实光盘照片，每日按规定时间上传","words":null,"groups":["691833677"],"naming":null,"channels":["QQ打卡群"],"flags":{"handwrite":false,"photo":true,"video":false,"quiz":false,"daily":true,"read":false,"banAI":false},"wordLabel":null,"rule":"打卡7/14/21天分别得1/2/3分；禁止旧图或盗图","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16514622","name":"南华大学“我和我的祖国”短视频线上活动","st":"3","sd":1791417600000,"ed":1792072800000,"jed":1791384900000,"addr":"线上","tribe":"校团委第二课堂工作部","cat":"参加文体类活动、讲座","content":"（一）前期准备和安排\n活动负责人在活动审核完成后在到梦空间发布活动，活动参与者于2026年10月1日～2026年10月7日在到梦空间报名活动，并加入活动答疑交流QQ群：\n群1：1093923975\n群2：1046618230\n群3：1046594579\n群4：1104428503\n群5：1107436767\n群6：1109357264\n群7：1109116929\n群8：805798705\n（二）中期活动流程\n（2026年10月8日～2026年10月15日）\n1.活动参与者通过到梦空间报名参与。\n2.作品要求： 参与者本人原创拍摄短视频（也可搭配主题图片混剪），围绕祖国山河、家乡变迁、校园时光、爱国故事、青春告白祖国等方向进行创作，搭配主题文案；视频需包含本人原声录制的对祖国的祝福寄语，可合理添加背景音乐；发布至抖音，关注并@南华棒棒团官方抖音。\n3. 发布完成后，截图并拼图作品和关注界面后，标注班级、姓名、学号，上传至QQ咨询群的收集表方便后续工作。\n4. 活动完结前，作品禁止删除、私密等，评为优秀作品2分。\n（三）后期安排\n校团委青年传媒中心组织工作人员收集截图。","jointip":"1.活动结束前，抖音严禁取消关注，作品严禁删除、私密等，否则涉及活动发分，后果由作者自负；\n2.参与者拍摄的照片或视频、采用的背景音乐，需符合社会主义核心价值观；\n3.参与活动的照片或者视频涉及的著作权、肖像权等法律责任由作者自负；\n4.作品必须为原创作品，一经发现盗用，将予以签退；\n5.凡参与作者，均视为同意并遵守以上各条规定。凡不符合要求的作品，一经发现将一律取消参与资格；\n6.活动最终解释权归主办方所有。\n\n\n校团委第二课堂工作部\n2026年9月30日","attach":[],"sign":"unknown","sum":{"do":"本人原创拍摄短视频并录制祝福原声；发抖音、关注并@南华棒棒团，提交作品与关注截图拼图","words":null,"groups":["1093923975","1046618230","1046594579","1104428503","1107436767","1109357264","1109116929","805798705"],"naming":"截图标注班级、姓名、学号","channels":["抖音发布","QQ咨询群收集表"],"flags":{"handwrite":false,"photo":false,"video":true,"quiz":false,"daily":false,"read":false,"banAI":false},"wordLabel":null,"rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16514293","name":"南华大学易班学生工作站 “重阳寄情，线上传暖”活动","st":"3","sd":1792627200000,"ed":1793195400000,"jed":1792590600000,"addr":"线上","tribe":"南华大学易班工作站","cat":"参加文体类活动、讲座","content":"       农历九月初九重阳节，是中华民族传承千年的传统节日，蕴含尊老敬老、感恩尽孝的深厚文化内涵。如今多数大学生在外求学，和长辈相隔两地，平日里忙于学业，常常缺少主动的问候与交流，很少向长辈直白表达心中的挂念。为传承孝道文化，唤起同学们对家中长辈的关怀，本次活动鼓励大家借助微信、电话等线上渠道向长辈送上重阳祝福，并撰写书信抒发内心感悟，让传统节日的温情融入当代青年的日常生活。","jointip":"1.本次活动QQ活动咨询群群号如下：\n活动咨询群1：1037850964；\n活动咨询群2：925060808；\n活动咨询群3：915606347；\n活动咨询群4：1095336754；\n活动咨询群5：1057184335；\n活动咨询群6：959195288；\n2.活动报名时间：2026年10月2日-2026年10月21日；\n   活动参与时间：2026年10月22日-2026年10月28日；\n3.活动方式：\n（1）参与者通过微信、电话等方式联系家中长辈，送上重阳节祝福，与长辈谈心交流，记录内心真实感受；\n（2）结合本次沟通的体会，用南华稿纸手写一封500-800字的感恩书信；\n（3）完成后将沟通交流的截图与感恩书信两张图片以Word文档形式提交，命名格式为：班级+姓名+学号，并在文档中插入相应真实照片（与活动内容相关，不可造假或借用他人照片），Word文档上传至表单：https://f.wps.cn/g/eCPRlzWy/；\n4.作品内容需积极向上、内容充实、真情实感，必须为原创。投稿进行上传后，工作人员将会对作品进行审查，一经发现抄袭、剽窃，取消参与资格；\n5.注意事项：\n（1）如遇突发情况，应及时与活动相关负责人取得联系，以免造成失误；\n（2）参与人员在交流过程中，需注意礼貌，不与其他人员发生矛盾；\n6.本活动的最终解释权归南华大学易班学生工作站所有。","attach":[],"sign":"unknown","sum":{"do":"联系长辈；用南华稿纸手写500–800字书信；将交流截图和书信照片放入Word上传","words":null,"groups":["1037850964","925060808","915606347","1095336754","1057184335","959195288"],"naming":"班级+姓名+学号","channels":["Word文档 → WPS表单 https://f.wps.cn/g/eCPRlzWy/"],"flags":{"handwrite":true,"photo":true,"video":false,"quiz":false,"daily":false,"read":false,"banAI":false},"wordLabel":"500–800字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16513123","name":"南华大学易班学生工作站 “忆山河，续华章”活动","st":"3","sd":1792542600000,"ed":1793196000000,"jed":1792540800000,"addr":"线上","tribe":"南华大学易班工作站","cat":"思想引领类报告、讲座","content":"       2026年是红军长征胜利90周年。十月作为长征胜利纪念月，承载着回望峥嵘岁月、传承红色血脉、弘扬奋斗精神的深刻时代意义。九十载风雨兼程，两万五千里长征征途铸就了不怕牺牲、百折不挠、团结奋进、攻坚克难的伟大长征精神，是中国共产党人宝贵的精神财富，也是新时代青年砥砺成长的精神源泉，特开展本次纪念长征胜利90周年全校性主题系列活动，让红色历史可感、可学、可践，推动长征精神在青年群体中代代相传、生生不息。","jointip":"1、本次活动QQ咨询群群号如下：\n活动咨询群①：294501437；\n活动咨询群②：1081572788；\n活动咨询群③：1063885594；\n活动咨询群④：1106810365；\n2、活动报名时间：2026年10月2日-2026年10月21日；\n      活动参与时间：2026年10月22日-2026年10月28日；\n3、活动方式：\n（1）观看长征系列影视剧作品/纪录片或阅读纪念长征系列文学作品，拍摄出自身观看照片并附带500字左右文字感悟发布于QQ空间；\n（2）将发布于QQ空间的说说截图，到QQ活动咨询群群公告处的问卷中完成调查问卷填写（问卷链接为https://v.wjx.cn/vm/QTSWooh.aspx）；\n4、作品内容需积极向上、内容充实、真情实感，必须为原创。投稿进行上传后，工作人员将会对作品进行审查，一经发现抄袭、剽窃，取消参与资格；\n5、本活动的最终解释权归南华大学易班学生工作站所有。","attach":[],"sign":"unknown","sum":{"do":"观看长征影视或阅读文学作品，拍本人观看照片，附约500字感悟发QQ空间，再提交说说截图","words":null,"groups":["294501437","1081572788","1063885594","1106810365"],"naming":null,"channels":["QQ空间发布","问卷 https://v.wjx.cn/vm/QTSWooh.aspx"],"flags":{"handwrite":false,"photo":true,"video":false,"quiz":false,"daily":false,"read":true,"banAI":false},"wordLabel":"约500字","rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"材料"}},{"id":"16513226","name":"南华大学“庆华诞·忆征程”课程学习活动","st":"3","sd":1792627200000,"ed":1793202900000,"jed":1792540800000,"addr":"易班APP","tribe":"南华大学易班工作站","cat":"思想引领类报告、讲座","content":"       2026年是中华人民共和国成立77周年。77年来，党领导人民栉风沐雨、砥砺前行，创造了举世瞩目的发展成就，走出了一条属于中国人民的奋进之路。历史的接力棒已然交到当代青年手中，为引导广大青年学子深刻体悟新中国发展的奋斗底色，厚植与祖国同呼吸共命运的家国情怀，进一步锚定青年一代的时代责任，特启动本次国庆主题爱国教育系列活动，推动爱国主义精神在青年群体中落地生根。","jointip":"1.本次活动QQ咨询群群号如下：\n活动咨询群①：623874738；\n活动咨询群②：692471550；\n活动咨询群③：671400379；\n活动咨询群④：691370780；\n活动咨询群⑤：691364525；\n活动咨询群⑥：437677550；\n2.活动报名时间：2026年10月2日-2026年10月21日；\n   活动参与时间：2026年10月22日-2026年10月28日23：59；\n3.加入易班优课课群\n本次活动在易班app进行，课群名称为“庆华诞·忆征程”，进入易班app，点击“易班优课”，点击“课群”，输入课群码：7JX5PPY7；\n或点击邀请链接:\n课群邀请链接（桌面版）：https://www.yooc.me/group/10780123#invitation=7JX5PPY7；\n课群邀请链接（移动版）：https://www.yooc.me/mobile/group/10780123/index#invitation=7JX5PPY7；\n或扫描二维码（见附件），加入课群，完成课群课程学习（观看视频，进行答题）；\n4.每人有两次作答机会，规定必须先完成课程学习然后进行答题，每次答题限时30分钟，取最后一次答题分数作为最终成绩，达到60分以上（满分100，共20题）可获得一分，达到100分可得两分，60分以下不得分，报名先到先得；\n5.注意事项：\n（1）如遇突发情况，应及时与活动相关负责人取得联系，以免造成失误；\n（2）参与人员在交流过程中，需注意礼貌，不要与其他人员发生矛盾；\n（3）建议参与人员在连接WiFi的情况下观看课程学习视频，注意流量消耗；\n6.本活动的最终解释权归南华大学易班学生工作站所有。","attach":[],"sign":"unknown","sum":{"do":"加入课群7JX5PPY7，先观看课程再答题；两次机会、每次30分钟，以最后一次成绩为准","words":null,"groups":["623874738","692471550","671400379","691370780","691364525","437677550"],"naming":null,"channels":["易班优课"],"flags":{"handwrite":false,"photo":false,"video":false,"quiz":true,"daily":false,"read":false,"banAI":false},"wordLabel":null,"rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"任务"}},{"id":"16476059","name":"南华大学金融协会第十二届“中金所杯”全国大学生金融知识大赛","st":"3","sd":1792022400000,"ed":1793448000000,"jed":1791979200000,"addr":"东方财富app","tribe":"南华大学金融协会","cat":"参加双创活动、讲座","content":"随着社会的不断发展，科技不断进步，犯罪分子的诈骗手段也层出不穷，新型诈骗不断涌现，为增强大学生的反诈意识，提高学生们的自我防范能力，学会保护自身利益，由团中央青发部联合东方财富举行全国大学生金融安全知识网络比拼活动。\n 本次活动通过知识竞赛的方式，传播金融安全相关知识，提高大学生们在日常生活中的警惕性，避开诈骗陷阱，当遇到骗局能够准确识别并能够运用法律武器保护自身的合法权益，学生们在答题过程中也可以不断学习和巩固相关知识，让安全知识熟记于心。","jointip":"建立QQ群，用于通知参与活动人员，解答疑问。\n答疑1群：1121018669\n答疑2群：1125470086\n答疑3群：679449455\n答疑4群：1125470019\n答疑5群：1109413866\n（二）活动中期1.报名方式:【方式一】手机 APP 报名：扫描下方二维码报名参赛。下载 \"东方财富\"APP，点击首页左上角 \"头像\" 图标进入 \"我\" 页面，进入 \"活动专区\"，选择 \"中金所杯\" 报名参赛。【方式二】微信公众号报名：关注 \"东方财富金融素养\" 微信公众号，对话框输入 \"中金所杯\" 获取报名链接参赛。考生注册报名时请填写完整、真实、有效的个人信息。大赛期间，考生可通过 \"中金所发布\" 及 \"中金所投教基地\" 微信公众号或 \"中金所期货期权学院\" 网站实时了解大赛动态。考试大纲：本通知发布后，参赛者可在 \"中金所发布\" 及 \"中金所投教基地\" 微信公众号或 \"中金所期货期权学院\" 网站查阅考试大纲。","attach":[],"sign":"unknown","sum":{"do":"通过东方财富APP或公众号报名参赛；查看官方考试大纲及比赛通知","words":null,"groups":["1121018669","1125470086","679449455","1125470019","1109413866"],"naming":null,"channels":["东方财富APP/公众号"],"flags":{"handwrite":false,"photo":false,"video":false,"quiz":true,"daily":false,"read":false,"banAI":false},"wordLabel":null,"rule":"","groupLabel":"QQ咨询/活动群","completionLabel":"任务"}},{"id":"16419920","name":"南华大学“纪念红军长征胜利，弘扬伟大长征精神”知识竞答”活动","st":"5","sd":1789862400000,"ed":1793455200000,"jed":1789855200000,"addr":"微博APP","tribe":"南华大学图书馆读者协会","cat":"参加文体类活动、讲座","content":" 2026年是红军长征胜利90周年、中国共产党成立105周年，同时也是“十五五”规划开局之年。为深入学习贯彻习近平新时代中国特色社会主义思想，深入学习贯彻党的二十大和二十届历次中央全会精神，落实立德树人根本任务，深化高校党史学习教育和红色育人工作，牢牢把握红军长征胜利90周年重要历史节点，引导全国高校学子重温长征历史、感悟长征精神、传承红色血脉，联合北京理工大学、兰州大学、西南大学等高校及到梦空间平台，在中央红军长征出发纪念馆、中国工农红军强渡大渡河纪念馆、红军飞夺泸定桥纪念馆等单位的支持下，特组织开展本次“纪念红军长征胜利90周年 学习弘扬伟大长征精神”大学生长征主题知识竞答活动，现将有关事宜通知如下","jointip":"““纪念红军长征胜利，弘扬伟大长征精神”知识竞答”参与须知\n\n1，本次活动咨询群（学习通群）\n默认班级：14389445\n班级一：77365449\n班级二：96944186\n\n2，活动的活动参与时间2026年9月20日-10月31日\n\n3，活动方式：\n1）活动发布在到梦空间时，采用报名制，活动总人数2000人。\n2）通过微博APP识别二维码，进入活动页面，每日进行答疑，根据累计积分发放证明，活动周期内累计答题积分达到60分及以上获得“学习合格”证明，即可获得文化艺术与身心发展1分，到达100可获得文化艺术与身心发展2分\n3）活动期间安排联络人员分布各群在线为参与人员解答疑问。\n\n4，活动最终解释权归南华大学图书馆所有。\n5，本次活动不进行补签。","attach":[],"sign":"signed","sum":{"do":"通过微博活动页每日答题，累计积分并取得证明","words":null,"groups":["14389445","77365449","96944186"],"naming":null,"channels":["微博答题活动页"],"flags":{"handwrite":false,"photo":false,"video":false,"quiz":true,"daily":true,"read":false,"banAI":false},"wordLabel":null,"rule":"累计60分得1分、100分得2分；活动不补签","groupLabel":"学习通班级/邀请码","completionLabel":"材料"}},{"id":"16475520","name":"南华大学金融协会第五届全国ETF菁英挑战赛","st":"3","sd":1796040000000,"ed":1801130400000,"jed":1796032800000,"addr":"东方财富app","tribe":"南华大学金融协会","cat":"参加双创活动、讲座","content":"本次第五届全国ETF菁英挑战赛由共青团南华大学委员会主办、南华大学金融协会承办，面向南华大学全体在校学生开展，活动周期为2026年9月1日—2027年1月28日，赛事主要依托东方财富APP线上开展。\n旨在引导同学们学习ETF相关金融知识，了解资本市场运行模式，借助模拟投资体验ETF交易，培养风险控制意识，帮助同学们树立理性投资理念与正确的财富观、价值观。","jointip":"(一)报名活动成功后应加入学习通答疑群。\n学习通1群：88638161\n学习通2群：73952420\n学习通3群：50897873\n学习通4群：80251251\n学习通5群：17914317\n学习通6群：31659210\n学习通7群：40810255\n（二）报名方式:\n1、手机 APP 报名： 完成报名后下载 \"东方财富\"APP，在 APP 首页的搜索框搜索 \"ETF 菁英赛\"；或点击 APP 首页的左上角头像，进入活动中心点击 \"ETF 菁英赛\" 即可参加； \n2、微信公众号报名： 方式一：关注 \"深市基金\" 微信公众号，点击底部 \"ETF 大赛\" 栏目跳转报名页面； 方式二：进入公众号菜单 “融大赛”\"ETF 大赛\" 栏目或对话框输入 \"ETF 大赛\" 报名。\n四、大赛规则（一）ETF 投资赛道ETF 投资赛道面向所有个人开放，分为高校组和社会组，使用大赛专用平台及虚拟资金，以大赛指定的 ETF 品种进行比拼，高校组和社会组选手分别评奖。比赛时间：比赛期间法定交易时间投资品种：ETF（大赛指定的 ETF 品种）投资资金：100 万虚拟资金。投资规则：1 参赛者需在模拟交易环境下创建 ETF 投资组合，交易规则同实盘接近，仅支持普通交易，不支持使用两融功能进行交易和套利。 2 完成报名后至 2026 年 9 月 30 日，参赛选手可在大赛系统中进行模拟交易热身练习，熟悉交易规则和操作系统，收益率不计入成绩。 3 每位参赛者在正式赛期间至少完成 5 笔交易且配置不少于 5 只产品，并完成投教区所有视频打卡，成绩方视为有效。 4 每日收盘清算后，对参赛者收益率从高到低进行排名更新。比赛结束后根据选手投资组合的总收益率，高校组与社会组分别评奖。","attach":[],"sign":"unknown","sum":{"do":"在模拟赛完成≥5笔交易、配置≥5只产品，并完成投教区全部视频打卡","words":null,"groups":["88638161","73952420","50897873","80251251","17914317","31659210","40810255"],"naming":null,"channels":["东方财富模拟赛事平台"],"flags":{"handwrite":false,"photo":false,"video":false,"quiz":true,"daily":false,"read":false,"banAI":false},"wordLabel":null,"rule":"","groupLabel":"学习通班级/邀请码","completionLabel":"任务"}}]</script>
+<script>
+var DATA = JSON.parse(document.getElementById("data").textContent);
+var BRIEF = document.getElementById("aiBrief").textContent;
+function ls(k, v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){return null} }
+function lsTime(k){ var v=ls(k); return v?new Date(+v):null }
+function fmtT(ms, withYear){
+  var d=new Date(+ms), now=new Date();
+  function p(n){return (n<10?"0":"")+n}
+  var hm=p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());
+  if(withYear||d.getFullYear()!==now.getFullYear()) return d.getFullYear()+"-"+hm;
+  return hm;
+}
+function countdown(ms){
+  if(!ms) return "";
+  var diff=ms-Date.now();
+  if(diff<=0) return "已到时间";
+  var days=Math.floor(diff/86400000), h=Math.floor(diff%86400000/3600000);
+  if(days>=1) return "剩"+days+"天"+(h?h+"小时":"");
+  return "剩"+Math.max(1,Math.floor(diff/3600000))+"小时";
+}
+function isDone(id){ return !!lsTime("dmkj_done_"+id) }
+function isDailyDoneToday(id){
+  var d=new Date(); var key="dmkj_daily_"+id+"_"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+  return !!lsTime(key);
+}
+function stateOf(t){ /* returns {sign, submit, done} */
+  var done=t.sum.flags.daily ? null : lsTime("dmkj_done_"+t.id);
+  var sign=lsTime("dmkj_sign_"+t.id);
+  var signTxt = (t.sign==="signed"||sign) ? "已签到" : (t.st==="3" ? "未到签到阶段" : "待确认");
+  var submitTxt = done ? ("已提交✓") : (t.content ? "待提交" : "待确认");
+  return {done:done, signTxt:signTxt, submitTxt:submitTxt, signed: t.sign==="signed"||!!sign};
+}
+function classify(a){
+  var text=a.name+a.content;
+  if(/征文|文字征集|书与诗|心得|书评|读后感|征稿|随笔/.test(text)) return "write";
+  if(/短视频|视频|摄影|镜头|微电影|vlog|海报|设计/.test(text)) return "video";
+  if(/打卡|捐步|竞答|答题|知识竞赛|问卷|分享会/.test(text)) return "plan";
+  return "other";
+}
+function headBlock(a){
+  var s="【活动】《"+a.name+"》 活动时间 "+fmtT(a.sd,true)+" ~ "+fmtT(a.ed,true);
+  if(a.ed) s+="(剩余 "+countdown(a.ed)+")";
+  s+="\n【核对后的任务摘要】"+a.sum.do;
+  if(a.sum.rule) s+="\n【积分与打卡规则】"+a.sum.rule;
+  if(a.sum.groups&&a.sum.groups.length) s+="\n【"+a.sum.groupLabel+"】"+a.sum.groups.join("、");
+  if(a.sum.naming) s+="\n【文件命名】"+a.sum.naming;
+  s+="\n【官方要求全文】\n"+(a.content||"(详见APP)");
+  if(a.jointip) s+="\n【参与须知】\n"+a.jointip;
+  return s;
+}
+function buildPrompt(a){
+  if(a.sum.flags.banAI) return headBlock(a)+"\n【AI使用限制】官方明确禁止AI创作。只解释流程、核对格式和提供本人执行清单，不代写正文、感悟、讲解或创作成品。\n请列出提交清单与注意事项，全部中文。";
+  var head="你是一名中国大学生,请帮我完成学校第二课堂活动的任务。\n"+headBlock(a)+"\n"+
+    "【产出格式要求】先核对活动要求指定的提交形式(Word文档/群相册/收集表/学习通/手写拍照/照片/视频),产出物必须与要求的文件格式一一对应:要求Word文档的,输出排版完整、可直接保存为.docx的成稿(开头留班级、姓名、学号占位行);要求手写拍照的,输出可照抄的电子稿,并提醒抄写后拍照上传;要求照片或视频的,成品必须本人拍摄,你只提供拍摄清单、分镜脚本和发布文案;严格按活动要求的字数和命名规则执行。\n【请你做】\n";
+  var k=a.sum.flags.daily ? "plan" : (["16513226","16476059","16475520","16446119"].indexOf(a.id)!==-1 ? "plan" : classify(a));
+  if(k==="write") return head+"1. 先用一句话说清这个活动真正要交什么(形式/主题/字数);\n2. 直接按要求写出完整成品全文(若要求里没写字数、格式,先反问我,我回复后再写);\n3. 成品后面附一段100字左右的创作说明。\n全部中文,直接给结果。";
+  if(k==="video") return head+"1. 列出我本人必须完成的事项清单(拍什么、发哪个平台、@什么账号、提交什么截图);\n2. 写一份拍摄脚本:分镜表(镜号/画面/台词/时长),并给发布文案和话题标签;\n3. 明确指出哪些环节AI无法代办(本人出镜、原声录制)。\n全部中文,直接给结果。";
+  if(k==="plan") return head+"1. 提炼对我的硬性要求(做什么、频率、在哪做、何时截止);\n2. 从今天到截止日,生成逐日执行计划表(表格:日期/做什么/在哪做);\n3. 结合参与须知,标出会导致学分工被取消的踩坑行为。\n全部中文,直接给结果。";
+  return head+"1. 用不超过5条说清这个活动要我做什么;\n2. 判断哪些环节AI能代劳(文字类材料),哪些必须本人完成;\n3. 对AI能代劳的部分,直接给出成品或详细提纲。\n全部中文,直接给结果。";
+}
+function toast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.style.display="block";
+  clearTimeout(t._h); t._h=setTimeout(function(){t.style.display="none"},2600);
+}
+function copyText(text, msg, done, fail){
+  function fb(){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      if(ok){ toast(msg); if(done)done(); } else { toast("复制失败,请手动选择文本复制"); if(fail)fail(); }
+    }catch(e){ toast("复制失败,请手动选择文本复制"); if(fail)fail(); }
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText&&window.isSecureContext!==false){
+    navigator.clipboard.writeText(text).then(function(){toast(msg);if(done)done();}, fb);
+  } else fb();
+}
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/\n/g,"<br>") }
+
+/* ---------- 今日待办 ---------- */
+function buildToday(){
+  var items=[];
+  var d=new Date();
+  var dayKey=d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+  DATA.forEach(function(t){
+    var st=stateOf(t);
+    if(t.sum.flags.daily && t.st==="5" && (!t.ed || t.ed>Date.now())){
+      items.push({type:"daily", t:t, key:"dmkj_daily_"+t.id+"_"+dayKey, done:!!lsTime("dmkj_daily_"+t.id+"_"+dayKey),
+        act:"今日打卡:"+t.name, meta:esc(t.sum.do)+" · "+esc(t.sum.rule)+" · "+esc(t.sum.groupLabel)+" "+(t.sum.groups&&t.sum.groups.length?t.sum.groups.join("/"):"见要求")});
+    }
+    var dl=t.ed?((t.ed-Date.now())/86400000):99;
+    if(!t.sum.flags.daily && dl>=0 && dl<7 && t.st!=="3"){
+      items.push({type:"submit", t:t, key:"dmkj_done_"+t.id, done:false,
+        act:(t.sum.completionLabel==="任务"?"完成任务:":"提交材料:")+t.name, meta:esc(t.sum.do)+" · 截止 <span class=\'t-dead\'>"+fmtT(t.ed,true)+"("+countdown(t.ed)+")</span>"});
+    }
+  });
+  items.sort(function(x,y){ return (x.t.ed||0)-(y.t.ed||0) });
+  var box=document.getElementById("todayList"); box.innerHTML="";
+  var visible=0;
+  items.forEach(function(it){
+    if(it.type==="submit") it.done=!!lsTime(it.key);
+    var div=document.createElement("div");
+    div.className="todayitem"+(it.done?" done":"");
+    div.innerHTML="<div class=\'t-main\'><div class=\'t-act\'>"+esc(it.act)+"</div><div class=\'t-meta\'>"+it.meta+
+      (it.done?" · ✅完成于 "+fmtT(lsTime(it.key),true):"")+
+      "</div></div><button class=\'check"+(it.done?" on":"")+"\'>"+(it.type==="daily"?(it.done?"今日已打卡 · 撤销":"标记今日已打卡"):(it.done?"已标记 · 撤销":(it.t.sum.completionLabel==="任务"?"标记任务已完成":"标记材料已提交")))+"</button>";
+    div.querySelector(".check").addEventListener("click", function(){
+      if(it.done){ ls(it.key,null); } else { ls(it.key,String(Date.now())); }
+      refresh();
+    });
+    box.appendChild(div); visible++;
+  });
+  document.getElementById("todayCnt").textContent=visible?visible+" 项":"今天没有硬性待办 🎉";
+  if(!visible) box.innerHTML="<div class=\'empty\'>今天没有硬性待办 🎉(每日打卡记得按计划坚持)</div>";
+}
+
+/* ---------- 活动卡片 ---------- */
+var curFilter="all", curSearch="";
+function cardHTML(t){
+  var st=stateOf(t);
+  var dl=t.ed?((t.ed-Date.now())/86400000):99;
+  var urgent=dl<3&&t.ed;
+  var sum=t.sum;
+  var sumParts=[];
+  sumParts.push("<b>做什么:</b>"+esc(sum.do));
+  if(sum.wordLabel) sumParts.push("<b>字数:</b>"+esc(sum.wordLabel));
+  if(sum.rule) sumParts.push("<b>规则:</b>"+esc(sum.rule));
+  if(sum.channels.length) sumParts.push("<b>提交到:</b>"+sum.channels.join("/"));
+  if(sum.groups.length) sumParts.push("<b>"+esc(sum.groupLabel)+":</b>"+sum.groups.join("、"));
+  if(sum.naming) sumParts.push("<b>命名:</b>"+sum.naming);
+  sumParts.push("<b>截止:</b>"+(t.ed?fmtT(t.ed, new Date(t.ed).getFullYear()!==new Date().getFullYear())+"("+countdown(t.ed)+")":"见要求"));
+  var badges="<span class='b st"+t.st+"'>"+({ "3":"报名中","4":"等待中","5":"进行中" }[t.st]||t.st)+"</span>";
+  badges+= urgent?"<span class='b urgent'>⏰"+countdown(t.ed)+"</span>":"";
+  badges+= sum.flags.daily?"<span class='b daily'>每日打卡</span>":"";
+  badges+= sum.flags.banAI?"<span class='b ban'>禁AI创作</span>":"";
+  badges+= st.signed?"<span class='b sig'>签到:已签</span>":(t.st==="5"?"<span class='b sig0'>签到:待确认</span>":"");
+  badges+=sum.flags.daily ? "<span class='b "+(isDailyDoneToday(t.id)?"sub1":"sig0")+"'>今日打卡:"+(isDailyDoneToday(t.id)?"本人已标记":"待确认")+"</span>" : "<span class='b "+(st.done?"sub1":"sig0")+"'>"+sum.completionLabel+":"+(st.done?"本人已标记完成":"待确认")+"</span>";
+  if(t.attach.length) badges+="<span class='b att'>已传附件 "+t.attach.length+"</span>";
+  var reqBody=(t.content?"<div class='rt'>📋 活动流程 / 作品要求</div><div class='rc'>"+esc(t.content)+"</div>":"")+
+              (t.jointip?"<div class='rt'>⚠️ 参与须知</div><div class='rc'>"+esc(t.jointip)+"</div>":"");
+  return "<div class='card' data-id='"+t.id+"' data-n='"+esc(t.name)+"' data-daily='"+(sum.flags.daily?1:0)+"' data-urgent='"+(urgent?1:0)+"'>"+
+    "<div class='c-head'><span class='c-name'>"+esc(t.name)+"</span><span>"+badges+
+    "<button class='askai'>🤖问AI</button></span></div>"+
+    "<div class='sumline'>"+sumParts.join(" · ")+"</div>"+
+    "<div class='c-meta'><span>🕐 "+fmtT(t.sd)+" ~ "+fmtT(t.ed)+"</span><span>📍 "+esc(t.addr||"—")+"</span><span>🏛 "+esc(t.tribe||"—")+"</span></div>"+
+    (t.content||t.jointip?"<details class='req'><summary>📋 点开看活动要求原文</summary>"+reqBody+"</details>":"<div class='c-meta'>要求详情请到 APP 查看</div>")+
+    "<div class='c-meta'><button class='check"+(st.done?" on":"")+"'>"+(sum.flags.daily?(isDailyDoneToday(t.id)?"今日已打卡 · 撤销":"标记今日已打卡"):(st.done?"已标记 · 撤销":(sum.completionLabel==="任务"?"标记任务已完成":"标记材料已提交")))+"</button>"+
+    (!st.signed&&t.st==="5"?"<button class='check sigmark'>标记已签到</button>":"")+"</div>"+
+    "</div>";
+}
+function bindCard(div){
+  var id=div.getAttribute("data-id");
+  var t=DATA.filter(function(x){return x.id===id})[0];
+  var q=div.querySelector(".askai");
+  if(q) q.addEventListener("click", function(){ copyText(buildPrompt(t), "已复制该活动的完整提示词 ✓ 粘给任意AI即可"); });
+  var c=div.querySelector(".check:not(.sigmark)");
+  if(c) c.addEventListener("click", function(){
+    var d=new Date();
+    var k=t.sum.flags.daily ? "dmkj_daily_"+id+"_"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate() : "dmkj_done_"+id;
+    if(lsTime(k)){ ls(k,null); } else { ls(k,String(Date.now())); }
+    refresh();
+  });
+  var s=div.querySelector(".check.sigmark");
+  if(s) s.addEventListener("click", function(){
+    var k="dmkj_sign_"+id;
+    if(lsTime(k)){ ls(k,null); } else { ls(k,String(Date.now())); }
+    refresh();
+  });
+}
+function renderCards(){
+  var box=document.getElementById("cardList"); box.innerHTML="";
+  var shown=0, total=0;
+  DATA.forEach(function(t){
+    total++;
+    var st=stateOf(t);
+    var dl=t.ed?((t.ed-Date.now())/86400000):99;
+    if(curFilter==="urgent"&&!(dl<3&&t.ed&&!st.done)) return;
+    if(curFilter==="daily"&&!t.sum.flags.daily) return;
+    if(curFilter==="todo"&&(t.st==="3"||(t.sum.flags.daily ? isDailyDoneToday(t.id)&&st.signed : st.done&&st.signed))) return;
+    if(curFilter==="done"&&!(t.sum.flags.daily ? isDailyDoneToday(t.id) : st.done)) return;
+    var hay=(t.name+t.content+t.jointip+t.tribe+(t.sum.groups||[]).join(" ")+(t.sum.channels||[]).join(" ")+(t.addr||"")).toLowerCase();
+    if(curSearch&&hay.indexOf(curSearch)===-1) return;
+    var w=document.createElement("div"); w.innerHTML=cardHTML(t);
+    var div=w.firstChild; bindCard(div); box.appendChild(div); shown++;
+  });
+  document.getElementById("cardCnt").textContent=shown+"/"+total+" 个";
+  if(!shown) box.innerHTML="<div class='empty'>没有符合筛选条件的活动——换个筛选或关键词试试</div>";
+}
+function renderStats(){
+  var done=0,daily=0,urgent=0,unknown=0;
+  DATA.forEach(function(t){
+    var st=stateOf(t);
+    if(st.done)done++;
+    if(t.sum.flags.daily&&t.st==="5"&&(!t.ed||t.ed>Date.now()))daily++;
+    if(t.ed&&!st.done&&(t.ed-Date.now())/86400000<3)urgent++;
+    if(t.st==="5"&&(!st.signed||(t.sum.flags.daily ? !isDailyDoneToday(t.id) : !st.done)))unknown++;
+  });
+  document.getElementById("stats").innerHTML=
+    "<div class='s'><b>"+DATA.length+"</b>活跃任务</div>"+
+    "<div class='s warn'><b>"+urgent+"</b>3天内截止未完成</div>"+
+    "<div class='s'><b>"+daily+"</b>每日打卡中</div>"+
+    "<div class='s warn'><b>"+unknown+"</b>待确认任务</div>"+
+    "<div class='s'><b>"+done+"</b>已标记材料/任务</div>";
+}
+function refresh(){ renderStats(); buildToday(); renderCards(); BRIEF=buildBrief(); }
+function buildBrief(){ return "到梦空间活动简报\n数据快照：2026-10-03 21:53；当前日期："+fmtT(Date.now(),true)+"\n实际报名、签到、提交与积分以APP及活动通知为准。以下内容不含姓名、学号或登录凭证。请逐项核对官方原文，遵守各活动AI限制。\n\n"+DATA.map(buildPrompt).join("\n\n──────\n\n"); }
+document.getElementById("filters").addEventListener("click", function(e){
+  if(!e.target.classList.contains("chip")) return;
+  document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("on")});
+  e.target.classList.add("on");
+  curFilter=e.target.getAttribute("data-f");
+  renderCards();
+});
+document.getElementById("q").addEventListener("input", function(e){
+  curSearch=e.target.value.trim().toLowerCase();
+  renderCards();
+});
+document.getElementById("copyBrief").addEventListener("click", function(){
+  copyText(BRIEF, "已复制完整简报 ✓ 粘给任意AI吧");
+});
+document.getElementById("copyFiltered").addEventListener("click", function(){
+  var picks=DATA.filter(function(t){
+    var el=document.querySelector(".card[data-id='"+t.id+"']");
+    return el&&!el.classList.contains("hide");
+  });
+  if(!picks.length){ toast("当前筛选下没有活动"); return; }
+  var txt="请按以下提示词逐个完成任务(每件成品用《活动名》分隔,产出格式跟随各活动要求的提交形式):\n\n"+
+    picks.map(function(t){return buildPrompt(t)}).join("\n\n──────\n\n");
+  copyText(txt, "已复制 "+picks.length+" 个活动的提示词 ✓");
+});
+document.querySelectorAll(".aiopen").forEach(function(b){
+  b.addEventListener("click", function(){
+    var u=b.dataset.u;
+    copyText(BRIEF, "已复制简报 ✓", function(){
+      if(u){
+        var w=window.open(u, "_blank");
+        if(!w) toast("已复制简报 ✓ 弹窗被拦截,请手动打开「"+b.textContent+"」粘贴");
+      } else {
+        toast("已复制简报 ✓ 切到「"+b.textContent+"」粘贴即可");
+      }
+    });
+  });
+});
+refresh();
+setInterval(function(){ if(!document.querySelector("details[open]")&&!document.getElementById("q").matches(":focus")) refresh(); },60000);
+</script></body></html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拾光规划 · 学习规划分析板</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">拾光规划</span>
+    <span class="sub">课表是参考，规划才是重点</span>
+  </div>
+  <nav class="tabs" id="navTabs">
+    <button data-tab="dashboard" class="active">总览</button>
+    <button data-tab="timetable">课表</button>
+    <button data-tab="goals">目标·任务</button>
+    <button data-tab="materials">资料库</button>
+    <button data-tab="plan">周计划</button>
+    <button data-tab="report">分析报告</button>
+    <button data-tab="settings">设置</button>
+  </nav>
+</header>
+<main id="mainContent"></main>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script src="js/xlsx.full.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/importers.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/estimator.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/views1.js"></script>
+<script src="js/views2.js"></script>
+<script src="js/views3.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
