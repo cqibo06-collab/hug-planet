@@ -130,15 +130,62 @@ var K_DATA = "dmkj_panel_data", K_SNAPAT = "dmkj_panel_snapat";
 var BRIEF = document.getElementById("aiBrief").textContent;
 function showGate(){ document.getElementById("gate").classList.add("show"); }
 function hideGate(){ document.getElementById("gate").classList.remove("show"); }
+/* ---------- 页面内一键生成/更新手机链接（面板直接推 GitHub，文件名固定所以链接不变） ---------- */
+var PHONE_LINK = "https://cqibo06-collab.github.io/hug-planet/dmkj-panel/?s=ed0c2215";
+var DATA_FILE = "dmkj-panel/data-ed0c2215.json";
+function utf8b64(str){
+  var bytes = new TextEncoder().encode(str), bin = [];
+  for(var i = 0; i < bytes.length; i += 0x8000)
+    bin.push(String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)));
+  return btoa(bin.join(""));
+}
+async function publishLink(){
+  var tok = ls("dmkj_gh_token");
+  if(tok && !confirm("使用本机已保存的 GitHub token 推送？\n「确定」= 用它推\n「取消」= 重新输入")) tok = null;
+  if(!tok){
+    var t = prompt("粘贴 GitHub token（需 hug-planet 仓库 Contents 写权限；fine-grained 最安全）：\n只保存在这台浏览器里，千万不要泄露给别人", "");
+    if(t === null) return;
+    t = String(t).trim();
+    if(!t){ toast("没有 token，已取消"); return; }
+    if(confirm("记住 token 到这台浏览器吗？（下次一键直推）")) ls("dmkj_gh_token", t);
+    tok = t;
+  }
+  toast("正在把当前数据推送到 GitHub …");
+  try{
+    var api = function(p, opt){
+      return fetch("https://api.github.com" + p, Object.assign({
+        headers: { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "Content-Type": "application/json" }
+      }, opt || {})).then(function(r){
+        return r.json().then(function(j){ return { ok: r.ok, status: r.status, j: j }; },
+                           function(){ return { ok: r.ok, status: r.status, j: {} }; });
+      });
+    };
+    var sha = null;
+    var cur = await api("/repos/cqibo06-collab/hug-planet/contents/" + DATA_FILE + "?ref=main");
+    if(cur.ok && cur.j && cur.j.sha) sha = cur.j.sha;
+    var put = await api("/repos/cqibo06-collab/hug-planet/contents/" + DATA_FILE, {
+      method: "PUT",
+      body: JSON.stringify({
+        message: "更新活动数据（页面内自推）" + new Date().toLocaleString(),
+        content: utf8b64(JSON.stringify(DATA)),
+        sha: sha, branch: "main"
+      })
+    });
+    if(!put.ok) throw new Error("HTTP " + put.status + " " + ((put.j && put.j.message) || ""));
+    copyText(PHONE_LINK, "已更新 ✓ 手机链接已复制，发到手机即可（Pages 约 1~2 分钟后生效）");
+  }catch(e){ toast("推送失败：" + e.message); }
+}
 function drawSub(){
   document.getElementById("subBar").innerHTML =
     "数据快照: <b>"+fmtT(SNAP_AT,true)+"</b>(快照后新进展以APP为准) · 活跃任务 <b>"+DATA.length+"</b> 个"
     + '<button class="aiopen" id="btnSwap">⬆️ 更换数据</button>'
     + '<button class="aiopen" id="btnExport">⬇️ 导出数据</button>'
-    + '<button class="aiopen" id="btnClip">📋 剪贴板导入</button>'+
+    + '<button class="aiopen" id="btnClip">📋 剪贴板导入</button>'
+    + '<button class="aiopen" id="btnPublish" style="background:#eef4ff;border-color:#9db9e8;color:#2b5fc0;font-weight:600">🔗 生成/更新手机链接</button>'+
     '<button class="aiopen" id="btnWipe">🗑 清除我的数据</button>';
   document.getElementById("btnSwap").onclick = function(){ document.getElementById("dataFile").click(); };
   document.getElementById("btnClip").onclick = importClip;
+  document.getElementById("btnPublish").onclick = publishLink;
   document.getElementById("btnExport").onclick = function(){
     var b = new Blob([JSON.stringify(DATA)], {type:"application/json;charset=utf-8"});
     var a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "到梦空间活动数据.json";
