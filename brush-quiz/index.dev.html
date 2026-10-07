@@ -141,6 +141,17 @@ textarea{resize:vertical;line-height:1.6}
 .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:4px;border:1px solid var(--line);vertical-align:-1px}
 
 .qcard{padding:22px 24px}
+/* 底部固定导航条：上一题/下一题 一直可见，手机上不用再滑到题目底部找按钮 */
+.qnavbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:45;
+  display:flex;align-items:center;gap:12px;
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.97);border-top:1px solid var(--line);
+  box-shadow:0 -6px 18px rgba(0,0,0,.05);
+}
+.qnavbar .qnav-pos{flex:1;text-align:center;font-weight:600;font-size:14px;color:var(--sub);white-space:nowrap}
+.qnavbar .btn{flex:1;max-width:180px}
+#view-quiz .quiz-body{padding-bottom:86px}  /* 留出导航条高度，不遮住答题卡最后一行 */
 .qtitle{display:flex;gap:8px;align-items:baseline;margin-bottom:12px;flex-wrap:wrap}
 .qno{font-size:17px;font-weight:700}
 .qstem{font-size:16px;line-height:1.85;white-space:pre-wrap;word-break:break-word}
@@ -591,6 +602,11 @@ B. …
           <button class="btn sm primary" id="qNext">下一题 →</button>
         </div>
       </div>
+    </div>
+    <div class="qnavbar">
+      <button class="btn" id="qPrevBar">← 上一题</button>
+      <span class="qnav-pos" id="qNavPos">- / -</span>
+      <button class="btn primary" id="qNextBar">下一题 →</button>
     </div>
   </section>
 
@@ -4824,6 +4840,7 @@ function curQ(){ return S ? S.list[S.idx] : null; }
 
 function renderQ(){
   const q = curQ(); if(!q) return;
+  const idxChanged = S._renderedIdx !== S.idx;   // 只有切题时才回顶，同题重渲染（判分反馈等）不动位置
   if(S._renderedIdx !== S.idx){ S._renderedIdx = S.idx; S.qStartAt = Date.now(); }   // 用于统计单题耗时
   const my = S.answers[q.id] || [];
   const locked = !!S.locked[q.id];
@@ -4940,6 +4957,8 @@ function renderQ(){
   $('#qBar').style.width = (done / S.list.length * 100) + '%';
   $('#sheetInfo').textContent = '已答 ' + done + '/' + S.list.length;
   $('#qCard').scrollTop = 0;
+  if(idxChanged) window.scrollTo(0,0);   // 切题后整页回顶（手机上页面是整体滚动的）
+  $('#qNavPos').textContent = '第 ' + (S.idx+1) + ' / ' + S.list.length + ' 题';
 
   // 事件
   $$('#qCard [data-opt]').forEach(b => b.onclick = () => pick(b.dataset.opt));
@@ -5943,6 +5962,8 @@ $('#qExit').onclick = () => {
 $('#qSubmit').onclick = submit;
 $('#qPrev').onclick = () => move(-1);
 $('#qNext').onclick = () => move(1);
+$('#qPrevBar').onclick = () => move(-1);
+$('#qNextBar').onclick = () => move(1);
 $('#qMark').onclick = () => {
   const q = curQ(); if(!q) return;
   S.marks[q.id] = !S.marks[q.id];
