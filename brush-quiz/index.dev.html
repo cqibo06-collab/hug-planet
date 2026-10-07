@@ -436,7 +436,7 @@ details.raw pre{background:#f7f9fc;border:1px solid var(--line);border-radius:8p
     </div>
 
     <div class="card pad mt2">
-      <h3>选择题库开始练习</h3>
+      <div class="between"><h3>选择题库开始练习</h3><span id="homeBankSort"></span></div>
       <div id="homeBanks" class="bank-list mt"></div>
       <div class="row mt">
         <button class="btn primary" data-go="import">＋ 导入新题目</button>
@@ -451,6 +451,7 @@ details.raw pre{background:#f7f9fc;border:1px solid var(--line);border-radius:8p
     <div class="between">
       <h2>我的题库</h2>
       <div class="row">
+        <span id="bankSortSlot"></span>
         <button class="btn" id="btnExportAll">导出完整备份(JSON)</button>
         <button class="btn" id="btnImportAll">导入完整备份</button>
         <button class="btn primary" data-go="import">＋ 导入题目</button>
@@ -2350,7 +2351,7 @@ function pickQuestionsForPt(pid){
     $('#modalBox').innerHTML = '<h3>给「' + esc(ptPath(pid, ' › ')) + '」关联题目</h3>'
       + '<div class="row"><input type="text" id="qpSeek" placeholder="搜索题干或标签…" value="' + esc(kw) + '" style="flex:1">'
       + '<select id="qpBank" style="max-width:220px"><option value="">全部题库</option>'
-      + DB.banks.map(b => '<option value="' + b.id + '"' + (b.id === bid ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('')
+      + sortedBanks().map(b => '<option value="' + b.id + '"' + (b.id === bid ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('')
       + '</select></div>'
       + '<div class="row mt"><span class="small muted">共 ' + list.length + ' 题 · 已关联 ' + Object.keys(linked).length + ' 道</span>'
       + '<button class="btn sm ghost" id="qpSelAll">选中全部结果</button>'
@@ -3406,7 +3407,7 @@ function renderHome(){
   drawHomePoints();
 
   const box = $('#homeBanks');
-  box.innerHTML = DB.banks.length ? DB.banks.map(b => {
+  box.innerHTML = DB.banks.length ? sortedBanks().map(b => {
     const cnt = {};
     b.questions.forEach(q => cnt[q.type] = (cnt[q.type]||0)+1);
     const tags = Object.keys(cnt).map(t => '<span class="tag">'+TYPE_NAME[t]+' '+cnt[t]+'</span>').join('');
@@ -3419,6 +3420,12 @@ function renderHome(){
       + '<button class="btn sm" data-exam="'+b.id+'">考试</button>'
       + '</div>';
   }).join('') : '<div class="empty"><div class="ico">📚</div>还没有题库，先导入题目或载入示例</div>';
+
+  // 章节排序方向按钮（题库多于一个才有意义）
+  const sslot = $('#homeBankSort');
+  sslot.innerHTML = DB.banks.length > 1 ? tagDirBtn() : '';
+  const sb = sslot.querySelector('[data-tagdir]');
+  if(sb) sb.onclick = () => { toggleTagSort(); renderHome(); };
 
   // 设置区
   let setBox = $('#homeSettings');
@@ -3522,12 +3529,16 @@ function drawHomePoints(){
    ========================================================= */
 function renderBanks(){
   const box = $('#bankList');
+  const sslot = $('#bankSortSlot');
+  sslot.innerHTML = DB.banks.length > 1 ? tagDirBtn() : '';
+  const sb = sslot.querySelector('[data-tagdir]');
+  if(sb) sb.onclick = () => { toggleTagSort(); renderBanks(); };
   if(!DB.banks.length){
     box.innerHTML = '<div class="empty"><div class="ico">📚</div>暂无题库</div>';
     $('#bankDetail').innerHTML = '';
     return;
   }
-  box.innerHTML = DB.banks.map(b => {
+  box.innerHTML = sortedBanks().map(b => {
     const tg = bankTags(b);
     return '<div class="bank-item">'
     + '<div style="flex:1"><div class="nm">'+esc(b.name)+'</div>'
@@ -3584,14 +3595,19 @@ function bankTags(list){
   const dir = (DB.settings && DB.settings.tagSort) === 'desc' ? -1 : 1;
   return Object.keys(m).sort((a,b) => natCmp(a,b) * dir).map(t => ({ tag:t, n:m[t] }));
 }
-// 章节/标签的排序方向按钮文案（显示当前方向，点击切换）
+// 章节/题库的排序方向按钮文案（显示当前方向，点击切换）
 function tagDirBtn(){
-  return '<button class="btn sm ghost" data-tagdir="1" title="章节按名称里的数字排序，点一下在升序/降序之间切换">'
+  return '<button class="btn sm ghost" data-tagdir="1" title="章节/题库按名称里的数字排序（第2章 < 第10章），点一下在升序/降序之间切换">'
     + (DB.settings.tagSort === 'desc' ? '↓ 降序' : '↑ 升序') + '</button>';
 }
 function toggleTagSort(){
   DB.settings.tagSort = DB.settings.tagSort === 'desc' ? 'asc' : 'desc';
   save();
+}
+// 题库列表也按名称自然排序（Java2_第2章 < Java2_第10章），方向跟章节排序设置走
+function sortedBanks(){
+  const dir = (DB.settings && DB.settings.tagSort) === 'desc' ? -1 : 1;
+  return DB.banks.slice().sort((a,b) => natCmp(a.name, b.name) * dir);
 }
 // 标签 + 题型组合筛选
 function filterQuestions(list, tags, types){
@@ -3886,7 +3902,7 @@ function openQEditor(bank, qid){
 function syncBankSelect(){
   const sel = $('#mBank'); if(!sel) return;
   const cur = sel.value;
-  sel.innerHTML = DB.banks.map(b => '<option value="'+b.id+'">'+esc(b.name)+'</option>').join('')
+  sel.innerHTML = sortedBanks().map(b => '<option value="'+b.id+'">'+esc(b.name)+'</option>').join('')
     + '<option value="__new__">＋ 新建题库…</option>';
   if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
 }
@@ -5788,7 +5804,7 @@ function openCompose(opt){
     $('#modalBox').innerHTML = '<h3>' + esc(opt.title || '组卷') + '</h3>'
       + '<div class="muted small">范围共 ' + all.length + ' 题，按下面条件组卷</div>'
       + (opt.bankPick ? '<div class="field mt"><label class="f">题库（可多选）</label><div class="tagbar">'
-          + DB.banks.map(b => '<button class="tagpick' + (st.bids.includes(b.id)?' on':'') + '" data-bid="' + b.id + '">'
+          + sortedBanks().map(b => '<button class="tagpick' + (st.bids.includes(b.id)?' on':'') + '" data-bid="' + b.id + '">'
             + esc(b.name) + '<span class="n">' + b.questions.length + '</span></button>').join('')
           + '</div></div>' : '')
       + '<div class="field"><label class="f">知识点（可多选，不选表示全部；会包含下级知识点）</label><div class="tagbar">'
