@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>刷题助手 · 功能说明书</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --tx:#1f2328; --mut:#6b7280;
+  --pri:#2f6fed; --pri-soft:#e8f0fe; --ok:#1a9c53; --ok-soft:#e6f6ec;
+  --warn:#c47f00; --warn-soft:#fdf3e0; --err:#d33d3d; --err-soft:#fdecec;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.75}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px;display:flex;gap:28px;align-items:flex-start}
+header{background:linear-gradient(120deg,#2f6fed,#5b8def);color:#fff;padding:34px 20px 30px;margin-bottom:24px}
+header .inner{max-width:1080px;margin:0 auto}
+header h1{margin:0 0 6px;font-size:26px;letter-spacing:.5px}
+header p{margin:0;opacity:.92;font-size:14px}
+header .meta{margin-top:12px;font-size:12.5px;opacity:.85}
+
+/* 目录 */
+nav{position:sticky;top:20px;width:210px;flex:none;max-height:calc(100vh - 40px);overflow:auto;
+  background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 12px}
+nav b{display:block;font-size:12px;color:var(--mut);letter-spacing:1px;margin:0 0 8px 6px}
+nav a{display:block;padding:5px 8px;border-radius:6px;color:var(--tx);text-decoration:none;font-size:13.5px}
+nav a:hover{background:var(--pri-soft);color:var(--pri)}
+
+main{flex:1;min-width:0}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin-bottom:18px}
+h2{margin:0 0 14px;font-size:19px;padding-bottom:10px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:8px}
+h2 .no{font-size:12px;color:var(--pri);background:var(--pri-soft);border-radius:5px;padding:2px 7px;font-weight:600}
+h3{margin:22px 0 8px;font-size:15.5px}
+h3:first-of-type{margin-top:4px}
+h4{margin:14px 0 6px;font-size:14px;color:#374151}
+p{margin:8px 0}
+ul,ol{margin:8px 0;padding-left:22px}
+li{margin:4px 0}
+code{background:#f1f3f5;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;color:#b3286b}
+pre{background:#f8f9fb;border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;
+  font-size:12.5px;line-height:1.6;font-family:ui-monospace,Menlo,Consolas,monospace;margin:10px 0}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:#f4f6f8;font-weight:600}
+tr:nth-child(even) td{background:#fbfcfd}
+.tip{background:var(--pri-soft);border-left:3px solid var(--pri);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:13.5px}
+.warn{background:var(--warn-soft);border-left:3px solid var(--warn);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:13.5px}
+.ok{background:var(--ok-soft);border-left:3px solid var(--ok);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:13.5px}
+.bad{background:var(--err-soft);border-left:3px solid var(--err);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:13.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.box{border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:#fcfdfe}
+.box h4{margin-top:0}
+.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+.steps li{counter-increment:s;position:relative;padding-left:34px;margin:10px 0}
+.steps li::before{content:counter(s);position:absolute;left:0;top:2px;width:22px;height:22px;border-radius:50%;
+  background:var(--pri);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.tag{display:inline-block;background:#eef1f4;border:1px solid var(--line);border-radius:20px;padding:1px 10px;font-size:12px;margin:2px 4px 2px 0}
+.tag.blue{background:var(--pri-soft);border-color:#c9dbfd;color:#1c4fb8}
+.tag.green{background:var(--ok-soft);border-color:#bfe6cd;color:#137a41}
+.tag.orange{background:var(--warn-soft);border-color:#f0d9a8;color:#8a5b00}
+.tag.red{background:var(--err-soft);border-color:#f3c4c4;color:#a52a2a}
+.mut{color:var(--mut)}
+.small{font-size:13px}
+.kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 6px;font-size:12px;background:#fff}
+footer{text-align:center;color:var(--mut);font-size:12.5px;padding:20px}
+@media(max-width:900px){.wrap{flex-direction:column}nav{position:static;width:100%}.grid2,.grid3{grid-template-columns:1fr}}
+@media print{
+  header{background:#2f6fed !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  nav{display:none}body{background:#fff;font-size:11.5px}
+  section{break-inside:avoid;border-color:#ccc;margin-bottom:10px;padding:14px}
+  .wrap{display:block;max-width:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <h1>刷题助手 · 功能说明书</h1>
+    <p>本地单文件、零依赖、纯离线的刷题与学习诊断工具 —— 数据只存在你自己的硬盘里</p>
+    <div class="meta">适用版本：第五轮（掌握度可解释 / ZIP 整包导入 / 开发版 + 发布版）　·　文件：<code style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff">index.html</code></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav>
+  <b>目录</b>
+  <a href="#s0">速览与三分钟上手</a>
+  <a href="#s1">界面地图</a>
+  <a href="#s2">导入题目</a>
+  <a href="#s3">刷题：练习与考试</a>
+  <a href="#s4">信心程度</a>
+  <a href="#s5">错题本与错因</a>
+  <a href="#s6">知识点体系</a>
+  <a href="#s7">掌握度怎么算</a>
+  <a href="#s8">今日建议与学习目标</a>
+  <a href="#s9">每周复盘</a>
+  <a href="#s10">数据、备份与迁移</a>
+  <a href="#s11">设置项一览</a>
+  <a href="#s12">开发版与发布版</a>
+  <a href="#s13">常见问题</a>
+  <a href="#s14">它的边界</a>
+</nav>
+
+<main>
+
+<!-- ================= 0 ================= -->
+<section id="s0">
+<h2><span class="no">0</span>速览与三分钟上手</h2>
+
+<p>它不是一个「随便抽题给你做」的刷题器，而是一个<b>小型学习诊断系统</b>：
+录入知识结构 → 导入题目并关联到知识点 → 做题与自测产生记录 → 系统算出每个知识点的掌握度 →
+给出<b>带理由的</b>复习建议 → 你照着做 → 产生新记录。闭环就是这样转起来的。</p>
+
+<div class="grid3">
+  <div class="box"><h4>它擅长的</h4>
+    <ul class="small">
+      <li>把 Word / PDF / 学习通里复制出来的一大坨题目整理成题库</li>
+      <li>练习与考试两种节奏，自动收错题</li>
+      <li>按<b>知识点</b>而不是按题库统计掌握度</li>
+      <li>区分「不会」和「会但做错」</li>
+      <li>告诉你<b>为什么</b>推荐这一步，以及今天做不完的部分</li>
+    </ul>
+  </div>
+  <div class="box"><h4>它不做的</h4>
+    <ul class="small">
+      <li>不联网、不上传、没有账号</li>
+      <li>不自动判简答题（只做左右对照）</li>
+      <li>不替你判断「会不会」，只根据你留下的痕迹估</li>
+      <li>不提供课程视频/讲义内容本身</li>
+    </ul>
+  </div>
+  <div class="box"><h4>一句话定位</h4>
+    <p class="small" style="margin:0">把「我到底哪里不会」这件模糊的事，拆成一组能看见、能追溯、能按天安排的数字。</p>
+  </div>
+</div>
+
+<h3>三分钟上手</h3>
+<ol class="steps">
+  <li><b>导入题目</b>：进「导入题目」，把题目原文粘进文本框 → 点「解析文本」→ 在预览表里检查/改几道 → 建库。</li>
+  <li><b>录入知识点</b>（强烈建议，别跳过）：进「知识点」，每行一个，用 <code>&gt;</code> 表示层级，例如
+      <code>数据结构 &gt; 线性表 &gt; 单链表头插法</code>。</li>
+  <li><b>关联</b>：回到「题库 → 查看/打标签」，单题点 <span class="tag blue">🔗 关联知识点</span>；或点「按名称/标签自动关联题目」让系统先配一遍，你再修。</li>
+  <li><b>开始练</b>：首页选择题库 → 练习模式。做完记得选一下<b>信心程度</b>，答错记得点<b>错因</b>。</li>
+  <li><b>看建议</b>：知识点页的「今日建议」会给出带理由的任务清单，点「开始」直接跳到对应动作。</li>
+</ol>
+
+<div class="tip">只有第 1 步也能用（当普通刷题器）。但从第 2 步开始，它才真正变成「诊断系统」——
+掌握度、推荐、周复盘全部建立在知识点之上。</div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+<h2><span class="no">1</span>界面地图</h2>
+
+<table>
+<tr><th style="width:110px">页签</th><th>能干什么</th></tr>
+<tr><td><b>首页</b></td><td>四个数字概览（题库数 / 题目数 / 今天该复习 / 今日已练）、题库入口、混合组卷、示例题库、进入设置与备份。</td></tr>
+<tr><td><b>题库</b></td><td>题库列表（练习 / 组卷 / 导出 / 重命名 / 删除）；点「查看/打标签」进详情：按标签+题型筛选、批量打标签、批量关联知识点、单题编辑与删除、校验报告、薄弱知识点。</td></tr>
+<tr><td><b>导入题目</b></td><td>三种录入方式：粘贴文本、上传文件（可多选 / 可 ZIP）、手动添加单题。带可编辑预览与问题标注。</td></tr>
+<tr><td><b>错题本</b></td><td>分「待复习 / 已掌握」两栏；重做错题、导出、清除已掌握、清空；每条可标错因、看倒计时提示。</td></tr>
+<tr><td><b>知识点</b></td><td>录入知识树、学习目标卡、今日建议、知识树浏览与过滤、知识点详情（掌握度构成 / 知识卡 / 问答卡 / 错因 / 健康状态 / 变更记录）。</td></tr>
+<tr><td><b>学习记录</b></td><td>成绩趋势与汇总、<b>每周复盘</b>、逐次练习记录（可点开看当次错题）。</td></tr>
+</table>
+
+<p class="small mut">答题页和结果页不占页签，是独立视图：答题页右侧是答题卡（可跳题、标记、收藏），结果页可逐题回看并补录信心与错因。</p>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+<h2><span class="no">2</span>导入题目</h2>
+
+<h3>① 粘贴文本（最常用）</h3>
+<p>直接从 Word / PDF / 学习通复制，粘进去点「解析文本」。解析器很宽松：全角编号、<code>Ａ．</code> 这类全角选项、
+答案写成「答案：A」「【答案】A」「正确答案 A」、题干和选项挤在同一行、PDF 断行——都能处理。</p>
+<pre>1. 下列关于函数的说法正确的是（ ）
+A. 选项一
+B. 选项二
+C. 选项三
+D. 选项四
+答案：A
+解析：略
+
+2. 【多选题】下列哪些属于…（ ）
+A. …
+B. …
+答案：AB
+
+3. 判断题：地球是圆的。
+答案：对</pre>
+<p class="small mut">题型会自动推断；也可以写 <code>【单选题】</code> <code>【多选题】</code> <code>判断题：</code> 这类显式标记强制指定。
+填空题多个空用 <code>|</code> 分隔。</p>
+
+<h4>简答题怎么导（这块规则最多）</h4>
+<p>下面这些写法都认，答案行的开头可以是：</p>
+<p class="small"><code>答案：</code> <code>参考答案：</code> <code>正确答案：</code> <code>标准答案：</code> <code>答案要点：</code> <code>解答：</code> <code>答：</code>——后面跟冒号、破折号，或者什么都不跟都行。</p>
+<pre>6. 死锁的四个必要条件是什么？
+参考答案：
+1. 互斥条件
+2. 请求与保持条件
+3. 不可剥夺条件
+4. 环路等待条件
+
+7. 谈谈你对时间复杂度的理解。   ← 没写参考答案也能导进来，做题时自评</pre>
+<ul class="small">
+  <li><b>分条写的答案不会被撕成好几道题</b>，换行会原样保留，看的时候还是四条。</li>
+  <li>没有参考答案的简答<b>不会被当成"缺答案"丢掉</b>，预览里标注「无参考答案 · 自评」。</li>
+  <li><code>答案解析：</code> 算解析，不会混进答案里。</li>
+  <li>试卷里「一、简答题（每题 10 分）」这种大标题会被跳过，但它会告诉系统——后面这一段默认是简答题。</li>
+  <li>做题时简答题<b>不自动判分、也不计入得分分母</b>，交卷后左右对照自评，不会拉低你的分数。</li>
+</ul>
+
+<h4>答案没写在「答案：」那一行也能认</h4>
+<table>
+<tr><th style="width:150px">写法</th><th>例子</th></tr>
+<tr><td>跟在题干行尾</td><td><code>1. 以下哪项不属于操作系统？（　）（答案：C）</code>　或　<code>…。答案：并发、共享</code></td></tr>
+<tr><td>写在题干括号里</td><td><code>1. 操作系统的主要功能是（ B ）</code></td></tr>
+<tr><td>正确选项后打勾</td><td><code>B. 磁盘驱动器 √</code></td></tr>
+<tr><td>选项之后孤立一行</td><td>四个选项下面单独一行写 <code>A</code> 或 <code>ABC</code></td></tr>
+<tr><td>判断题末尾画圈</td><td><code>进程是程序的一次执行过程（√）</code></td></tr>
+</table>
+
+<h4>题号 / 分隔方式：怎么排都行</h4>
+<ul class="small">
+  <li>编号认这几种：<code>1.</code> <code>1、</code> <code>1）</code> <code>(1)</code> <code>第1题</code> <code>【1】</code> <code>一、</code>，Markdown 的 <code>## 1.</code> 也认。</li>
+  <li><b>完全没有题号也行</b>：题目之间空一行；就算没空行，只要「下一组选项」出现就能自动断开。</li>
+  <li><code>---</code> 这类分隔线、<code>【单选题】</code> 这类题型标签，都会被当作题与题的边界。</li>
+  <li>Word / Excel 表格粘出来的一行（Tab 分列）、四个选项挤在一行的 PDF 文本，都能直接贴。</li>
+  <li>「一、单选题（每题 2 分）」这类<b>章节大标题不会变成一道题</b>，而是给后面一段定默认题型。</li>
+</ul>
+
+<h3>② 上传文件（可多选 / 可 ZIP 整包）</h3>
+<p>支持 <code>.txt</code> <code>.md</code> <code>.csv</code> <code>.json</code> <code>.zip</code>，可以一次选中十几个章节文件：
+每个文件单独建题库，也可以合并成一个。可勾选「用文件名给题目打标签」。</p>
+
+<h4>三种投喂方式（任选，哪条顺手用哪条）</h4>
+<ul>
+  <li><b>选择文件</b>：点输入框选，可按住 Ctrl / Shift 多选。</li>
+  <li><b>拖进来</b>：把文件（或整包 ZIP）直接拖到「②上传文件」这块卡片上，卡片会变色并提示「松手就导入」。</li>
+  <li><b>Ctrl+V 粘贴</b>：在资源管理器里 <code>Ctrl+C</code> 一个文件，回到本页按 <code>Ctrl+V</code>；
+      手机上「拷贝 → 粘贴」同样好使。</li>
+</ul>
+<div class="warn">三条通道都给同一条导入流水线，结果完全一样。如果<b>三条都没反应</b>，是当前窗口把文件选择拦住了 ——
+用 Chrome / Edge <b>双击打开这个 HTML</b>，不要在应用内置的预览窗、或聊天软件内置浏览器里点。
+（拖拽和粘贴在部分内置浏览器里仍可用，可以先用它们顶上。）</div>
+
+<h4>ZIP 题库包（推荐给手机端）</h4>
+<pre>Java题库.zip
+├─ Java2_第1章.json        ← 每个 JSON 建一个题库（也可 { banks:[...] } 一次装多套）
+├─ Java2_第2章.json
+├─ images/xxx.png          ← 题图，JSON 里写 "image":"xxx.png" 或 "images/xxx.png" 都能配上
+└─ 知识点.json              ← {"pts":[...],"qlink":{...}}，合并进现有知识树</pre>
+<p>解压是<b>自己实现的、零依赖</b>的（支持 store 与 deflate 两种压缩方式），包里的图片会自动转成内嵌 base64 并绑到对应题目上 ——
+手机上不用再一个个点文件，也不用担心图片路径失效。</p>
+
+<h4>题图的三种写法</h4>
+<ul>
+  <li><b>ZIP 包内</b>：JSON 里写 <code>"image":"images/xxx.png"</code>（写单纯文件名也能配上），导入时自动内嵌。</li>
+  <li><b>相对路径</b>：把图片放在网页文件旁边或子文件夹，JSON 里写相对路径。</li>
+  <li><b>直接内嵌</b>：在题目编辑器里上传本地图片，存成 base64，最稳，代价是备份文件变大。</li>
+</ul>
+<div class="warn">只放行 <code>http(s)</code> / <code>data:image</code> / <code>blob</code> / 相对路径，<code>javascript:</code> 之类会被直接挡掉。</div>
+
+<h3>③ 手动添加单题</h3>
+<p>页面最下方的表单，选题型、选归属题库、填题干选项答案即可，适合补那种导入时漏掉的题。</p>
+
+<h3>导入后的两道保险</h3>
+<div class="grid2">
+  <div class="box"><h4>校验报告</h4>
+    <p class="small" style="margin:0">统计总题数、题型分布，并标出：缺答案、缺选项、答案不在选项里、题干过短、重复题、带图题、含代码题。
+    有问题的题<b>不会丢</b>，会打上标记留在可编辑预览里等你改。</p></div>
+  <div class="box"><h4>去重</h4>
+    <p class="small" style="margin:0">按「题干 + 选项」指纹比对，同时去掉<b>批内重复</b>和<b>与已有题库重复</b>的题，
+    导入完成会提示「新增 N，跳过重复 M」。可在设置或批量面板里关掉。</p></div>
+</div>
+
+<h3>一道题都没进来时怎么办</h3>
+<p>以前这种情况只会弹一句提示就没了，现在会给出一张<b>逐条说清楚的卡</b>：</p>
+<table>
+<tr><th style="width:170px">提示的原因</th><th>说明与处理</th></tr>
+<tr><td><b>和已有题库重复</b></td><td>这份题原来就有。想覆盖回去：到「题库」页先删掉旧的那份，或直接点面板上的「重复题也一起导入」。</td></tr>
+<tr><td><b>批内重复</b></td><td>同一份东西里有一样的题，系统只留一道。</td></tr>
+<tr><td><b>没有答案、没法判分</b></td><td>选择题 / 填空题没认出答案。面板上会列出是哪些题；可点「没答案的也导入（当简答题自评）」先收进来，之后在题库页补答案。</td></tr>
+<tr><td><b>好几道题粘成一道</b></td><td>预览里会打这个标记。多数情况是题目之间没有空行，<b>在题与题之间空一行</b>再导一次即可。</td></tr>
+<tr><td><b>一段都没认出来</b></td><td>多半是扫描版 PDF 转出来的整页文字。至少要有一行像题干，加上选项或答案行中的任意一样。</td></tr>
+</table>
+<div class="tip">没有答案、也没有选项的题（比如只有「名词解释：操作系统」的清单）现在也<b>不会丢</b>，会按简答题收进来供自评。</div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+<h2><span class="no">3</span>刷题：练习与考试</h2>
+
+<table>
+<tr><th style="width:90px">模式</th><th>行为</th><th>适合</th></tr>
+<tr><td><b>练习</b></td><td>选完立即判分并显示解析（可关）；答错当场进错题本；可以慢慢想，看本题已练次数与正确率。</td><td>平时推进、啃新内容</td></tr>
+<tr><td><b>考试</b></td><td>全部答完交卷后统一判分，可设倒计时（分钟，0 为不限时）；交卷后逐题回看。</td><td>自测、模拟、限时训练</td></tr>
+</table>
+
+<h3>组卷（练习 / 考试 / 混合组卷共用）</h3>
+<p>一个弹窗里同时决定：<b>题库</b>（可多选）→ <b>知识点</b>（可多选，含下级）→ <b>标签/章节</b> → <b>题型</b> →
+<b>题目来源</b>（全部 / 只刷错题 / 只刷未做 / 只刷收藏）→ <b>错题优先比例</b>（0~100%，其余用新题补足）→
+<b>题量</b> → <b>顺序</b>（随机 / 原顺序）→ 模式与倒计时。筛选过程中实时显示「匹配 N 题」。</p>
+<div class="tip">想突击某一章：知识点选那一章 + 来源选「只刷未做」+ 题量 20。
+想清错题：来源「只刷错题」并直接点错题本的「重做错题」（只出不待掌握的那些）。</div>
+
+<h3>答题页</h3>
+<ul>
+  <li>右侧答题卡：跳题、看已答/未答、<span class="tag">标记本题</span>、<span class="tag">☆ 收藏</span>。</li>
+  <li>题干支持图片与代码块：代码题会自动识别成等宽块（支持 <code>```</code> 围栏，也能自动识别连续代码行），带一键复制、超 18 行折叠。</li>
+  <li>答案对比区左右两栏对照（填空/简答尤其有用）。<b>简答题不自动判分，也不计入得分分母</b> —— 避免把分数拉低。</li>
+  <li>题目下方会显示它计入哪些知识点，随时知道这一题在给谁投票。</li>
+</ul>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+<h2><span class="no">4</span>信心程度：答对 ≠ 会</h2>
+
+<p>每答完一题，页面会请你标一下当时状态（结果页也能回头补）：</p>
+
+<table>
+<tr><th style="width:110px">选项</th><th style="width:70px">权重</th><th>系统怎么理解</th></tr>
+<tr><td>确定会</td><td>1.0</td><td>独立、稳定地答出来，这是最硬的证据。</td></tr>
+<tr><td>有点犹豫</td><td>0.7</td><td>答对了但不够稳，仍然计入，只是分量打折。</td></tr>
+<tr><td>靠猜</td><td>0.3</td><td><b>答对也自动进错题本</b>（标注「蒙对」），不算掌握。</td></tr>
+<tr><td>不会</td><td>0</td><td>等同于没掌握，先从知识卡补起。</td></tr>
+</table>
+
+<div class="ok">两个反直觉但重要的处理：<br>
+① <b>答对但靠猜</b> → 直接进复习队列，别被正确率骗了。<br>
+② <b>答错但当时「确定会」</b> → 归为<b>表现型失误</b>（审题/计算/表达），不是知识漏洞，推荐的是限时训练而不是回去看书。<br>
+如果你后来改口说「其实确定会」，那条蒙对记录会自动撤销。</div>
+
+<p class="small mut">权重会乘进单题贡献里的「独立完成度」一项，进而影响掌握度。觉得它太狠或太松，可以直接改脚本里的 <code>CONF</code> 表。</p>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+<h2><span class="no">5</span>错题本与错因</h2>
+
+<h3>间隔复习节奏</h3>
+<p>答错后按 <b>1 天 / 3 天 / 7 天</b> 的间隔提醒重做；答对升一级，答错回到第 0 级。
+错题本默认显示「今天该复习」的那些，其余有倒计时提示。</p>
+
+<h3>掌握规则（什么时候算真会了）</h3>
+<p>连续答对 <b>2 次</b>（设置里可改成 3 次）<b>且两次间隔 ≥ 1 天</b> —— 同一天连做三遍对不算，那是短时记忆。
+达标后自动移到「已掌握」，不再占「重做错题」的名额；想再练可手动「重新复习」。</p>
+
+<h3>错因：把「错了」翻译成「下一步做什么」</h3>
+<div class="grid2">
+  <div class="box"><h4>知识型（know）</h4>
+    <p class="small" style="margin:0">概念不清 · 定义/公式没记住 · 条件判断错 · 方法选择错 · 蒙对的<br>
+    → 建议：<b>回知识卡与问答自测</b>，不要急着刷同类题。</p></div>
+  <div class="box"><h4>表现型（perf）</h4>
+    <p class="small" style="margin:0">审题/粗心 · 计算失误 · 表达不完整<br>
+    → 建议：<b>限时训练 + 步骤复盘</b>，知识点本身没问题。</p></div>
+</div>
+<p class="small mut">这个分类直接决定推荐引擎给你「看知识卡」还是「练这里的题」，也是周复盘里「知识型 vs 表现型」统计的来源 —— 不标错因，复盘就缺一半信息。</p>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+<h2><span class="no">6</span>知识点体系</h2>
+
+<h3>录入</h3>
+<p>每行一个，用 <code>&gt;</code> 或缩进表示层级，父级会自动创建：</p>
+<pre>数据结构 > 线性表 > 顺序表的插入删除
+数据结构 > 线性表 > 单链表的头插法
+数据结构 > 栈和队列 > 栈的应用：括号匹配
+操作系统 > 进程管理 > PV 操作</pre>
+<p>两个偷懒入口：<span class="tag blue">从题库标签生成知识点</span>（你之前拿标签当章节用的话，一键升级）、
+<span class="tag blue">按名称/标签自动关联题目</span>（按关键词自动配对，你再修）。</p>
+
+<h3>关联题目</h3>
+<ul>
+  <li><b>单题关联</b>：题库详情里每道题的 <span class="tag blue">🔗 关联知识点</span>，可多选、可设权重。</li>
+  <li><b>批量关联</b>：筛完条件后点「关联知识点」，一次给几十道题挂上。</li>
+  <li>一题可以挂<b>多个</b>知识点并分别设权重 —— 一道综合题既考「栈」又考「递归」，两边都要投票。</li>
+</ul>
+<div class="tip">关联单独存在一张 <code>qlink</code> 表里，不写在题目对象上。好处：题目怎么复制、导出、合并都不丢关联，也能批量改。</div>
+
+<h3>知识卡与问答自测</h3>
+<div class="grid2">
+  <div class="box"><h4>知识卡（note）</h4>
+    <p class="small" style="margin:0">定义 / 要点 / 常见误区 / 前提条件。复习时<b>先唤醒「这是什么」</b>，不直接做题。</p></div>
+  <div class="box"><h4>问答卡（cards）</h4>
+    <p class="small" style="margin:0">问 + 要点，自评「答得出 / 答不出」。测的是<b>不看资料能不能提取出来</b> —— 跟会做题是两回事。</p></div>
+</div>
+<p>自测结果会写进带时间戳的流水，<b>直接进入掌握度计算</b>（见下一节）。连续答不出时，系统会明确告诉你：
+「提取不出来，不是不会做题，先看一遍知识卡，连续答对两次才算过。」</p>
+
+<h3>版本、健康状态与变更记录</h3>
+<ul>
+  <li>每个知识点记着创建时间、最后修改时间，以及<b>变更记录</b>（创建 / 修改 / 关联 / 合并 / 删除）。</li>
+  <li><b>健康状态</b>一眼看完：是否已关联题目、有无问答卡、有无知识卡内容、是否已有学习记录。</li>
+  <li>可以设<b>前置知识点</b>：前置没掌握会成为推荐它的理由之一。</li>
+  <li>反复合并拆分是常态，所以有 <span class="tag blue">合并到…</span>：把题目关联、问答卡、前置关系一起迁到目标知识点，源节点删除，并留一条变更日志。</li>
+</ul>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+<h2><span class="no">7</span>掌握度怎么算（以及为什么它标着「证据不足」）</h2>
+
+<h3>单题贡献</h3>
+<pre>原始分 = 0.28×历史正确率 + 0.18×最近是否答对 + 0.24×熟练度 + 0.15×稳定性 + 0.15×独立完成度
+熟练度     = min(1, 练过次数 / 3)
+稳定性     = 不在错题本 1.0 / 已修正 0.7 / 未修正 0
+独立完成度 = 由你标的信心程度换算（见第 4 节）
+贡献分     = 原始分 × 遗忘衰减， 衰减 = 1 − min(0.5, 距上次天数 / 40)</pre>
+
+<h3>知识点得分</h3>
+<pre>题目标现 = 100 × Σ(贡献分 × 权重) / Σ权重  −  min(20, 未修正错题数 × 5)
+问答表现 = (0.35×自测正确率 + 0.25×最近三次 + 0.25×覆盖度 + 0.15×次数充足度) × 衰减
+           连续答不出 ≥2 次 → 再打 0.7 折
+
+两类证据都有 → 掌握度 = 0.7 × 题目标现 + 0.3 × 问答表现
+只有一类     → 就用那一类（不做惩罚，缺证据不等于低分）</pre>
+<p class="small mut">父节点知识点：自己没直接挂题就只由子节点聚合，不会因为自身 0 分把均值拉偏。</p>
+
+<h3>证据等级：分数旁边那行小字更重要</h3>
+<table>
+<tr><th style="width:110px">标记</th><th style="width:180px">大致条件</th><th>该怎么用这个分数</th></tr>
+<tr><td><span class="tag">未关联题目</span></td><td>没挂题、也没问答卡</td><td>分数无意义，先去关联题目或补卡。</td></tr>
+<tr><td><span class="tag orange">证据不足</span></td><td>只做过一题、样本极少</td><td><b>只能当参考，不当结论。</b></td></tr>
+<tr><td><span class="tag blue">初步估计</span></td><td>练过几题，样本还不够稳</td><td>方向可信，具体数值别较真。</td></tr>
+<tr><td><span class="tag blue">较可信</span></td><td>证据量足够</td><td>可以用来决定复习优先级。</td></tr>
+<tr><td><span class="tag green">稳定掌握</span></td><td>多次答对、近期复习过、无未修正错题</td><td>低频维护即可；超过 21 天没碰会自动降级。</td></tr>
+</table>
+<div class="warn">这是整个系统里最容易误读的地方：<b>0 分通常只表示「还没练过」，不表示「完全不会」</b>。
+所以分数后面永远跟着证据等级，鼠标悬停能看到具体说明。</div>
+
+<p class="small mut">所有权重都是经验值，不是常数真理。用一阵子觉得「问答的分量太轻/太重」，改 <code>ptMastery()</code> 里那两个系数就行。</p>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+<h2><span class="no">8</span>今日建议与学习目标</h2>
+
+<h3>学习目标（先告诉系统你要什么）</h3>
+<p>知识点页顶部的目标卡，六项：</p>
+<ul>
+  <li><b>主攻课程/范围</b>：选一个知识点，它的整棵子树享受优先级加成。</li>
+  <li><b>考试/作业日期</b>：进入倒计时，临近时冲刺权重上升。</li>
+  <li><b>每天可用时长</b>（默认 60 分钟）：决定今天给你排多少任务。</li>
+  <li><b>今日目标</b>：查漏补缺 / 巩固 / 预习 / 冲刺 —— 分别偏向「最低分知识点」「中档 50~85 转稳定」「完全没练过的新点」「错题与主攻薄弱点」。</li>
+  <li><b>想做题还是先理解</b>：影响任务排序（先理解 → 知识卡和自测排前面）。</li>
+  <li><b>期望复习间隔</b>（默认 7 天）：超过就认为存在遗忘风险。</li>
+</ul>
+
+<h3>建议长什么样</h3>
+<p>每条推荐由三部分组成：<b>知识点 + 一排理由 + 一串任务</b>。理由是结构化的，不是「因为薄弱」这种废话，而是：</p>
+<div class="box" style="margin-top:10px">
+<p class="small" style="margin:0 0 6px"><b>方法重写 vs 重载</b>　<span class="tag red">掌握度 34%（证据不足）</span></p>
+<p class="small" style="margin:0 0 8px">
+<span class="tag">最近两次答错</span>
+<span class="tag">最近错因是「方法选择错」（知识型）</span>
+<span class="tag">有 2 道错题还没修正</span>
+<span class="tag">是「多态」的前置</span>
+<span class="tag">在主攻范围内</span>
+</p>
+<p class="small" style="margin:0">任务：<span class="tag blue">看知识卡 4 分钟</span> → <span class="tag blue">问答自测 6 分钟</span> → <span class="tag blue">修正错题 6 分钟</span> → <span class="tag blue">练这里的题 12 分钟</span>　<b>合计 28 分钟</b>　[开始]</p>
+</div>
+
+<h4>排序依据（优先级打分）</h4>
+<p class="small">掌握度缺口 45 + 遗忘风险 25 + 未修正错题 20 + 未练习比例 10，再叠加：问答连续答不出、前置未掌握、主攻范围加成、考试倒计时加成、今日目标权重。
+任务按分钟数估时，<b>超过今日预算的部分会明确标出来</b>，不会假装你做得完。</p>
+
+<div class="tip">连续两次答不出问答卡时，任务会以「知识卡 + 自测」开头，而不是继续推题 —— 提取不出来的时候，刷题只是在浪费时间。</div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section id="s9">
+<h2><span class="no">9</span>每周复盘</h2>
+
+<p>「学习记录」页的周复盘不重复罗列数字，而是回答四个问题：</p>
+<ol>
+  <li><b>本周哪些知识点提升了</b> —— 与上周对比，掌握度上升的点。</li>
+  <li><b>哪些退步了</b> —— 下降的点，多数是遗忘，提醒你补一次。</li>
+  <li><b>哪些在反复错</b> —— 同知识点、同题目反复失手，说明方法不对，不是练得不够。</li>
+  <li><b>错误性质</b> —— 知识型 vs 表现型的比例。</li>
+</ol>
+<p>最后给出<b>下周怎么调整</b>，是具体动作而不是口号，例如：</p>
+<div class="box small">知识型错误占多数 → <b>减少</b>盲目刷新同类题，先回知识卡和问答自测，答得出来再去做题。</div>
+<p class="small mut">结论可以一键复制，直接贴进你的周计划或日记。所有统计都来自带时间戳的作答流水，可追溯到具体哪一次。</p>
+</section>
+
+<!-- ================= 10 ================= -->
+<section id="s10">
+<h2><span class="no">10</span>数据、备份与迁移</h2>
+
+<h3>存在哪</h3>
+<p>优先用 <b>IndexedDB</b>（容量大），不可用或浏览器禁用时自动回退 <b>localStorage</b>（key：<code>brushquiz_v1</code>）。
+首页顶部的状态条会告诉你当前用的哪种、数据多大。两者都能正常读写，只是回退模式下备份只保留 3 份。</p>
+
+<h3>四层备份，按需要选</h3>
+<table>
+<tr><th style="width:150px">方式</th><th>说明</th></tr>
+<tr><td>自动备份</td><td>每次导入题库、每次覆盖恢复前自动存一份；IndexedDB 保留 10 份，回退模式 3 份。</td></tr>
+<tr><td>备份面板</td><td>列出所有备份（时间 / 原因 / 题库数 / 题数 / 体积），可<b>恢复</b>、<b>下载</b>、<b>删除</b>。</td></tr>
+<tr><td>导出完整备份</td><td>题库页的「导出完整备份(JSON)」，一个文件包含全部数据，含流水、目标、变更记录（<b>schema v2</b>）。</td></tr>
+<tr><td>单独导出</td><td>单个题库 JSON（会带上用到的知识点与关联）、错题、知识点、记录 CSV。</td></tr>
+</table>
+
+<h3>恢复的两种方式</h3>
+<ul>
+  <li><b>覆盖</b>：以备份为准，恢复前会先自动备份一次当前数据。题目 id 会被重建，系统会把 <code>qstat / qlink / 收藏 / 错题 / 记录</code> 的引用全部重映射 —— 这是修掉的老 bug，覆盖恢复后掌握度不再归零。</li>
+  <li><b>合并</b>：指纹去重后补题，错题与记录按 id 去重；知识点按「父路径 + 名称」复用，不会重复建。</li>
+</ul>
+
+<div class="warn">数据只在<b>这一台机器的这个浏览器</b>里。清理浏览器数据、换浏览器、换设备都会丢 ——
+定期用「导出完整备份」存一份 JSON 到网盘或 U 盘，这是唯一的保险。</div>
+</section>
+
+<!-- ================= 11 ================= -->
+<section id="s11">
+<h2><span class="no">11</span>设置项一览</h2>
+<table>
+<tr><th style="width:230px">设置</th><th style="width:70px">默认</th><th>说明</th></tr>
+<tr><td>练习模式：选完立即判分并显示解析</td><td>开</td><td>关掉就变成「做完一批再统一看」。</td></tr>
+<tr><td>多选题漏选得一半分</td><td>关</td><td>严格按全对判分，还是漏选给一半。</td></tr>
+<tr><td>每次导入题库后自动备份</td><td>开</td><td>建议保持开启，导入是最容易出意外的一步。</td></tr>
+<tr><td>导入时跳过重复题</td><td>开</td><td>按题干+选项指纹去重。</td></tr>
+<tr><td>题库文件自带的知识点/关联一并带入</td><td>开</td><td>别人给你的题库带 <code>pts/qlink</code> 时直接接上。</td></tr>
+<tr><td>错题需要连续答对几次才算掌握</td><td>2 次</td><td>可改 3 次（且两次间隔 ≥1 天）。</td></tr>
+</table>
+</section>
+
+<!-- ================= 12 ================= -->
+<section id="s12">
+<h2><span class="no">12</span>开发版与发布版</h2>
+<p>目录里有两份 HTML，<b>用途不同，别搞混</b>：</p>
+<table>
+<tr><th style="width:150px">文件</th><th>用途</th></tr>
+<tr><td><code>index.dev.html</code></td><td><b>开发版</b>：带注释、有缩进，平时改这个。</td></tr>
+<tr><td><code>index.html</code></td><td><b>发布版</b>：由 <code>node build.js</code> 压缩生成（292 KB → 245 KB），发给自己、拷到手机上用。</td></tr>
+</table>
+<pre># 改完开发版，跑这两条
+node build.js      # 重新生成发布版
+node _test.js      # 在开发版上跑 92 项断言
+node _test.js index.html   # 在发布版上再跑一遍（确认压缩没压坏）</pre>
+<div class="tip">发布版只是压缩了空格和注释，功能完全一致。日常使用直接双击 <code>index.html</code> 就行，不需要任何服务器或联网。</div>
+</section>
+
+<!-- ================= 13 ================= -->
+<section id="s13">
+<h2><span class="no">13</span>常见问题</h2>
+
+<h4>选了文件没反应，框里还是「未选择文件」？</h4>
+<p class="small">这是曾经真实存在的 bug（现已修好）：读文件前先清空了输入框，而 <code>input.files</code> 是「活」的列表，
+一清空连文件一起没了，于是导入流程根本没被触发，界面也毫无反应。
+现在换成了三条通道（选择文件 / 拖拽 / 粘贴），任何一条成功都会有明确反馈：出现「已选择 N 个文件 · 共识别 M 题」的面板，或者一张写明原因的失败卡片。
+如果三条都没反应，就是窗口层面的限制，换浏览器打开本页。</p>
+
+<h4>为什么我导入的题乱七八糟？</h4>
+<p class="small">先看校验报告：缺答案、答案不在选项里、题干过短都会被标出来，在预览表里直接改。
+最常见的原因是 PDF 复制时选项和题干粘成一行，或者答案行格式太怪 —— 这两种解析器都做了兜底，还是不行就手动改那几道。</p>
+
+<h4>掌握度为什么一直是 0？</h4>
+<p class="small">八成是<b>题目没关联到知识点</b>。掌握度是按知识点算的，没关联的题不参与。
+去题库详情点「关联知识点」，或点「按名称/标签自动关联题目」先自动配一轮。</p>
+
+<h4>0 分是不是说明我完全不会？</h4>
+<p class="small">不是。看分数旁边的证据等级：写着「未关联题目」或「证据不足」，说明只是没数据。
+系统刻意不把「没练过」显示成「不会」。</p>
+
+<h4>为什么推荐让我看知识卡，而不是多做题？</h4>
+<p class="small">因为你在这个点上的错误是<b>知识型</b>的（概念/条件/方法），或者问答自测连续答不出来 ——
+意思是「提取不出来」，此时刷题只是在反复暴露同一个洞。看懂 → 答得出 → 再做对，这个顺序更快。</p>
+
+<h4>为什么我的简答题导进来是空的 / 少了一堆？</h4>
+<p class="small">以前有两个坑（现已修好，供你判断是否还遇到）：一是答案开头写「答：」时不识别，整段被当成题干；二是答案里带 <code>1.</code> <code>2.</code> 编号会被当成新题切开，一道题变成一道"缺答案"的垃圾题。现在的规则见上一节。</p>
+
+<h4>简答题不给我判分？</h4>
+<p class="small">故意的。自动判简答要么太宽松要么太离谱，所以简答题不计入得分分母，只在结果页给你左右对照自己看。</p>
+
+<h4>图片在别的电脑打不开？</h4>
+<p class="small">用相对路径就会这样。要么放进 ZIP 包一起导入（自动转内嵌 base64），要么在题目编辑器里直接上传图片。</p>
+
+<h4>数据会不会被传到网上？</h4>
+<p class="small">不会。整个文件没有一行网络请求代码，断网也能用。唯一的例外是你自己引用了外链图片。</p>
+</section>
+
+<!-- ================= 14 ================= -->
+<section id="s14">
+<h2><span class="no">14</span>它的边界（请认真读完这一段）</h2>
+
+<ul>
+  <li><b>掌握度是估计，不是测量。</b>它只反映你<b>在这个题库、这些题上</b>留下的痕迹。题库覆盖不到的地方，系统看不见。</li>
+  <li><b>推荐只负责排序，不负责判断对错。</b>你比它更清楚明天考什么 —— 把推荐当参谋，不当指令。</li>
+  <li><b>「会做题」和「懂了」是两件事。</b>所以才同时看题目表现和问答表现：前者是应用，后者是提取。</li>
+  <li><b>证据不足时，任何分数都别当结论。</b>样本少的知识点，宁可多练两道再看。</li>
+  <li><b>它不会替你学。</b>录入知识点、标错因、标信心——这三件事你不做，系统就只剩一堆正确率。</li>
+  <li><b>数据没有云端。</b>换设备、清缓存都会丢，请养成导出备份的习惯。</li>
+</ul>
+
+<div class="ok" style="margin-top:16px">最小可用原则：先让它跑起来（导入 → 练 → 看错题），
+等规则不够用了再加知识点、错因、目标。<b>不要为了用满功能而用功能。</b></div>
+</section>
+
+</main>
+</div>
+
+<footer>刷题助手 · 本地离线 · 说明书随版本更新 · 打印本页即可得到一份 PDF 版</footer>
+
+</body>
+</html>
