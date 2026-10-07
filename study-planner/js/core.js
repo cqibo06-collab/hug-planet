@@ -111,7 +111,8 @@ PB.store = (() => {
       tasks: [],       // {id,goalId,title,estHours,doneHours,priority,preferred}
       subjects: [],    // {id,name,target,note}
       materials: [],   // {id,subjectId,type:'link'|'note',title,url,content,createdAt}
-      plan: { weekOf: '', items: [] }, // items: {id,taskId,goalId,date,start,end,done}
+      plan: { weekOf: '', items: [] }, // items: {id,taskId,goalId,date,start,end,done,locked}
+      meta: { lastBackup: null },
     };
   }
 
@@ -128,6 +129,7 @@ PB.store = (() => {
       s.settings = { ...d.settings, ...(saved.settings || {}) };
       s.settings.llm = { ...d.settings.llm, ...((saved.settings || {}).llm || {}) };
       s.plan = { ...d.plan, ...(saved.plan || {}) };
+      s.meta = { ...d.meta, ...(saved.meta || {}) };
       for (const k of ['courses', 'events', 'goals', 'tasks', 'subjects', 'materials'])
         if (!Array.isArray(s[k])) s[k] = [];
       return s;
@@ -146,12 +148,29 @@ PB.store = (() => {
 
   function replaceAll(newState) { state = newState; save(); }
 
+  // 撤销：保存/恢复状态快照（内存中保留最近 5 步）
+  const _undoStack = [];
+  function snapshot() {
+    _undoStack.push(JSON.stringify(state));
+    if (_undoStack.length > 5) _undoStack.shift();
+  }
+  function undo() {
+    const snap = _undoStack.pop();
+    if (!snap) return false;
+    state = JSON.parse(snap);
+    save();
+    return true;
+  }
+  function canUndo() { return _undoStack.length > 0; }
+  function markBackup() { state.meta.lastBackup = U.dateStr(U.today()); save(); }
+
   return {
     get: () => state,
     save,
     uid,
     replaceAll,
     reset: () => { state = defaults(); save(); },
+    snapshot, undo, canUndo, markBackup,
   };
 })();
 
@@ -159,14 +178,22 @@ PB.store = (() => {
 PB.ui = (() => {
   const U = PB.util;
 
-  function toast(msg, type = '') {
+  function toast(msg, type = '', action) {
     const root = document.getElementById('toastRoot');
     const el = document.createElement('div');
     el.className = 'toast ' + type;
     el.textContent = msg;
+    if (action) {
+      const b = document.createElement('button');
+      b.className = 'toast-btn';
+      b.textContent = action.label;
+      b.onclick = () => { action.onClick(); el.remove(); };
+      el.appendChild(b);
+    }
     root.appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2600);
-    setTimeout(() => el.remove(), 3000);
+    const ttl = action ? 8000 : 2600;
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, ttl);
+    setTimeout(() => el.remove(), ttl + 400);
   }
 
   // openModal({title, bodyHTML, onMount(modalEl), footer:[{label, cls, onClick(close)}]})
