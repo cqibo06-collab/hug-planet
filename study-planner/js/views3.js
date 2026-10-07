@@ -53,20 +53,24 @@
     root.querySelector('#wNext').onclick = () => { curMonday = U.dateStr(U.addDays(U.parseDate(monday), 7)); plan(root); };
     root.querySelector('#wNow').onclick = () => { curMonday = null; plan(root); };
     root.querySelector('#btnGen').onclick = () => {
-      UI.confirmBox(`${s.plan.weekOf === monday ? '重新生成将替换' : '生成'} ${U.fmtCN(monday)} 这一周的学习安排（不影响课程），继续？`, () => {
-        const r = PB.engine.generatePlan(monday);
-        const st = PB.store.get();
-        st.plan = { weekOf: r.weekOf, items: r.items, warnings: r.warnings };
-        PB.store.save();
-        UI.toast(r.warnings.length ? `已生成，但有 ${r.warnings.length} 条排不下的提醒` : '本周计划已生成', r.warnings.length ? 'err' : 'ok');
-        plan(root);
-      }, { danger: false, okLabel: '生成' });
+      const s0 = PB.store.get();
+      const hasCurrent = s0.plan.weekOf === monday && s0.plan.items.length;
+      UI.confirmBox(
+        hasCurrent
+          ? `重新安排 ${U.fmtCN(monday)} 这一周？<br><span class="muted small">已完成和已锁定的时段会原样保留，其余重新排，调整前可看预览。</span>`
+          : `生成 ${U.fmtCN(monday)} 这一周的学习安排（不影响课程），继续？`,
+        () => PB.views.replanWeekPreview(() => plan(root)),
+        { danger: false, okLabel: '继续', title: hasCurrent ? '重新安排' : '生成计划' },
+      );
     };
     const clearBtn = root.querySelector('#btnClearPlan');
     if (clearBtn) clearBtn.onclick = () => UI.confirmBox('清空当前保存的周计划？', () => {
+      PB.store.snapshot();
       const st = PB.store.get();
       st.plan = { weekOf: '', items: [], warnings: [] };
-      PB.store.save(); plan(root);
+      PB.store.save();
+      UI.toast('已清空计划', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'plan'); } });
+      plan(root);
     });
 
     // AI 对话调整
@@ -75,7 +79,7 @@
       const input = root.querySelector('#chatInput');
       const msg = input.value.trim();
       if (!msg) return;
-      if (!PB.llm.configured()) { UI.toast('未配置 AI 接口：请到「设置」填写 API 地址与密钥', 'err'); return; }
+      if (!PB.llm.configured()) { PB.views.aiGuideModal(); input.value = ''; return; }
       sendBtn.disabled = true; sendBtn.textContent = '思考中…';
       const box = root.querySelector('#chatResult');
       box.innerHTML = '<p class="muted small">AI 正在分析你的要求…</p>';
@@ -95,8 +99,10 @@
           </div>`;
         box.querySelector('#opsNo').onclick = () => { box.innerHTML = ''; };
         box.querySelector('#opsOk').onclick = () => {
+          PB.store.snapshot();
           const replanOffset = applyOps(ops);
           box.innerHTML = '<p class="small" style="color:var(--green)">✅ 已执行。</p>';
+          UI.toast(`已执行 ${ops.length} 项 AI 操作`, 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'plan'); } });
           if (replanOffset != null) {
             curMonday = U.dateStr(U.addDays(U.mondayOf(U.today()), replanOffset * 7));
             const rr = PB.engine.generatePlan(getMonday());
@@ -215,28 +221,47 @@
       bodyHTML: `
         <p style="font-size:14.5px"><b>${U.esc(t ? t.title : '整体推进')}</b></p>
         <p class="muted small">${U.fmtCN(it.date)} ${U.hmStr(it.start)}~${U.hmStr(it.end)}（${h.toFixed(1)} 小时）${g ? ` · 目标：${U.esc(g.title)}` : ''}</p>
-        ${t ? `<p class="muted small">任务进度：已投入 ${(t.doneHours || 0).toFixed(1)}h / 预计 ${(t.estHours || 0).toFixed(1)}h</p>` : ''}`,
+        ${t ? `<p class="muted small">任务进度：已投入 ${(t.doneHours || 0).toFixed(1)}h${t.actualHours ? ` · 实际累计 ${t.actualHours.toFixed(1)}h` : ''} / 预计 ${(t.estHours || 0).toFixed(1)}h</p>` : ''}
+        <p class="muted small">${it.locked ? '🔒 已锁定：重新安排时此块保持不动。' : (it.done ? '已完成。' : '锁定后，"重新安排"会原样保留这个时段。')}</p>`,
       footer: [
-        ...(t ? [{
-          label: it.done ? '撤销完成' : '✓ 标记完成（计入投入）', cls: it.done ? '' : 'primary',
+        ...(it.done ? [{
+          label: '撤销完成', cls: '',
           onClick: (close) => {
             const st = PB.store.get();
             const tt = st.tasks.find(x => x.id === it.taskId);
             const item = st.plan.items.find(x => x.id === it.id);
-            if (tt && item) {
-              if (it.done) tt.doneHours = Math.max(0, (tt.doneHours || 0) - h);
-              else tt.doneHours = (tt.doneHours || 0) + h;
-              item.done = !it.done;
+            if (item) {
+              if (tt) {
+                tt.doneHours = Math.max(0, (tt.doneHours || 0) - h);
+                if (item.actualHours) tt.actualHours = Math.max(0, (tt.actualHours || 0) - item.actualHours);
+              }
+              item.done = false; delete item.actualHours;
               PB.store.save();
-              UI.toast(it.done ? '已撤销' : `已计入 ${h.toFixed(1)} 小时投入`, 'ok');
+              UI.toast('已撤销完成', 'ok');
             }
             close(); if (onDone) onDone();
           },
-        }] : []),
+        }] : [{
+          label: '✓ 标记完成', cls: 'primary',
+          onClick: (close) => { close(); PB.views.completeBlockFlow(it, onDone); },
+        }, {
+          label: it.locked ? '🔓 解除锁定' : '🔒 锁定该时段',
+          onClick: (close) => {
+            const st = PB.store.get();
+            const item = st.plan.items.find(x => x.id === it.id);
+            if (item) { item.locked = !item.locked; PB.store.save(); UI.toast(item.locked ? '已锁定，重排时将保留' : '已解除锁定', 'ok'); }
+            close(); if (onDone) onDone();
+          },
+        }, {
+          label: '⏩ 顺延', onClick: (close) => { close(); PB.views.deferBlockFlow(it, onDone); },
+        }]),
         { label: '删除该块', cls: 'danger', onClick: (close) => {
+          PB.store.snapshot();
           const st = PB.store.get();
           st.plan.items = st.plan.items.filter(x => x.id !== it.id);
-          PB.store.save(); close(); if (onDone) onDone();
+          PB.store.save(); close();
+          UI.toast('已删除该块', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'plan'); } });
+          if (onDone) onDone();
         } },
         { label: '关闭' },
       ],
@@ -261,16 +286,17 @@
     root.innerHTML = `
       <div class="page-title">分析报告</div>
       <div class="page-desc">时间账由规则引擎精确计算；AI 建议基于这份账单撰写，不重新算数。</div>
-      <div class="verdict ${f.verdict === 'ok' ? 'ok' : f.verdict === 'warn' ? 'warn' : 'over'}">
-        <div class="big">${s.goals.length ? f.verdictCN : '还没有目标'}</div>
-        <div class="desc">${s.goals.length ? U.esc(f.verdictMsg) : '先到「目标·任务」添加目标或用一句话让 AI 拆解，再来生成报告。'}</div>
+      <div class="verdict ${f.verdict === 'ok' ? 'ok' : f.verdict === 'warn' ? 'warn' : f.verdict === 'over' ? 'over' : 'gray'}">
+        <div class="big">${f.verdictCN}</div>
+        <div class="desc">${U.esc(f.verdictMsg)}</div>
       </div>
-      <div class="stats" style="margin-bottom:14px">
-        <div class="stat"><div class="num">${f.capH.toFixed(1)}h</div><div class="lbl">每周可投入（整块 ${(f.cap.chunkTotal / 60).toFixed(1)}h + 碎片 ${(f.cap.fragTotal / 60).toFixed(1)}h 之内）</div></div>
+      <div class="stats" style="margin-bottom:6px">
+        <div class="stat"><div class="num">${f.capExplain.studyH}h</div><div class="lbl">每周可投入</div></div>
         <div class="stat"><div class="num">${f.totalReq.toFixed(1)}h</div><div class="lbl">目标需求/周</div></div>
-        <div class="stat"><div class="num">${Math.round(f.usage * 100)}%</div><div class="lbl">时间占用率</div></div>
+        <div class="stat"><div class="num">${f.capH > 0 ? Math.round(f.usage * 100) + '%' : '—'}</div><div class="lbl">时间占用率</div></div>
         <div class="stat"><div class="num">${f.totalRemain.toFixed(1)}h</div><div class="lbl">全部剩余工作量</div></div>
       </div>
+      <div class="muted small" style="margin:2px 2px 14px">${PB.views.capExplainHTML(f)}</div>
       <div class="card" style="margin-bottom:14px">
         <h3>目标明细</h3>
         ${f.perGoal.length ? `<table class="data">
@@ -299,11 +325,13 @@
       <div class="card" style="margin-top:14px">
         <h3>AI 深度建议 <span class="hint">${PB.llm.configured() ? '基于上方时间账' : '需在设置中配置 AI 接口'}</span></h3>
         <div id="aiAdvice"><div class="muted small">点击按钮生成：AI 会结合你的时间账、目标优先级给出取舍建议。</div></div>
-        <button class="btn primary" id="btnAdvice" style="margin-top:10px" ${s.goals.length ? '' : 'disabled'}>生成 AI 深度建议</button>
+        <button class="btn primary" id="btnAdvice" style="margin-top:10px">生成 AI 深度建议</button>
       </div>`;
 
     const btn = root.querySelector('#btnAdvice');
-    if (s.goals.length) btn.onclick = async () => {
+    btn.onclick = async () => {
+      if (!PB.llm.configured()) { PB.views.aiGuideModal(); return; }
+      if (!s.goals.length) return;
       btn.disabled = true; btn.textContent = '生成中…';
       const box = root.querySelector('#aiAdvice');
       box.innerHTML = '<p class="muted small">AI 正在结合你的时间账撰写建议…</p>';
@@ -368,6 +396,7 @@
           <button class="btn danger" id="btnReset">清空全部数据</button>
         </div>
         <input type="file" id="importFile" accept=".json" style="display:none">
+        <div class="foot-hint">上次备份：${s.meta.lastBackup ? U.fmtCN(s.meta.lastBackup) + '（' + U.dayDiff(U.dateStr(U.today()), s.meta.lastBackup) + ' 天前）' : '从未备份'}。数据只存在这台浏览器里，建议每周导出一次。</div>
         <div class="foot-hint">版本 v${PB.version} · 单文件本地应用，无需服务器。</div>
       </div>`;
 
@@ -400,13 +429,7 @@
       }
       b.disabled = false; b.textContent = '测试连接';
     };
-    root.querySelector('#btnExport').onclick = () => {
-      const blob = new Blob([JSON.stringify(PB.store.get(), null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `shiguang-backup-${U.dateStr(U.today()).replaceAll('-', '')}.json`;
-      a.click();
-    };
+    root.querySelector('#btnExport').onclick = () => PB.views.exportBackup();
     root.querySelector('#btnImport').onclick = () => root.querySelector('#importFile').click();
     root.querySelector('#importFile').onchange = async e => {
       const file = e.target.files[0];
@@ -415,18 +438,25 @@
         const data = JSON.parse(await file.text());
         if (!data || (!data.goals && !data.courses)) throw new Error('文件格式不对');
         UI.confirmBox('导入将覆盖当前全部数据，继续？', () => {
+          PB.store.snapshot();
           PB.store.replaceAll(data);
-          UI.toast('导入成功', 'ok');
+          UI.toast('导入成功', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'dashboard'); } });
           PB.app.nav('dashboard');
         }, { danger: false, okLabel: '覆盖导入' });
       } catch (err) { UI.toast('导入失败：' + err.message, 'err'); }
       e.target.value = '';
     };
     root.querySelector('#btnDemo').onclick = () => UI.confirmBox('载入示例数据将<b>覆盖</b>当前数据，继续？', () => {
-      PB.demo.load(); UI.toast('示例数据已载入', 'ok'); PB.app.nav('dashboard');
+      PB.store.snapshot();
+      PB.demo.load();
+      UI.toast('示例数据已载入', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'dashboard'); } });
+      PB.app.nav('dashboard');
     }, { danger: false, okLabel: '载入' });
     root.querySelector('#btnReset').onclick = () => UI.confirmBox('确定清空<b>全部</b>数据（目标/任务/课表/计划/资料）？不可恢复！', () => {
-      PB.store.reset(); UI.toast('已清空', 'ok'); PB.app.nav('dashboard');
+      PB.store.snapshot();
+      PB.store.reset();
+      UI.toast('已清空', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'dashboard'); } });
+      PB.app.nav('dashboard');
     });
   }
 
