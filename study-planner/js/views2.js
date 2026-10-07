@@ -14,6 +14,8 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn primary" id="btnAddGoal">＋ 添加目标</button>
           <button class="btn" id="btnAIParse">✨ 用一句话描述，AI 帮我拆目标</button>
+          <span id="llmStatus"></span>
+          <button class="btn" id="btnImportTasks">📥 导入任务表（HTML/JSON）</button>
           <span style="flex:1"></span>
           <span class="muted small" id="workloadSummary"></span>
         </div>
@@ -28,7 +30,18 @@
     renderGoalCards(root.querySelector('#goalCards'), () => goals(root));
 
     root.querySelector('#btnAddGoal').onclick = () => goalModal(null, () => goals(root));
-    root.querySelector('#btnAIParse').onclick = () => aiParseModal(() => goals(root));
+    root.querySelector('#btnAIParse').onclick = () => {
+      if (!PB.llm.configured()) { PB.views.aiGuideModal(); return; }
+      aiParseModal(() => goals(root));
+    };
+    root.querySelector('#btnImportTasks').onclick = () => PB.taskimp.modal(() => goals(root));
+    // AI 配置状态直接标在按钮旁（未配置给「去配置」入口）
+    const llmEl = root.querySelector('#llmStatus');
+    if (PB.llm.configured()) llmEl.innerHTML = '<span class="badge green">AI 已配置</span>';
+    else {
+      llmEl.innerHTML = '<span class="badge orange">AI 未配置</span> <button class="btn sm" id="goLLM">去配置</button>';
+      llmEl.querySelector('#goLLM').onclick = () => PB.app.nav('settings');
+    }
     if (!s.goals.length) root.querySelector('#workloadCard').style.display = 'none';
   }
 
@@ -51,7 +64,7 @@
     if (summaryEl) summaryEl.textContent = `预计 ${totalEst.toFixed(1)}h · 已投入 ${totalDone.toFixed(1)}h · 剩余 ${totalRemain.toFixed(1)}h`;
     container.innerHTML = `
       <table class="data">
-        <thead><tr><th>任务</th><th>所属目标</th><th>估算方式</th><th>预计</th><th>已投入</th><th>剩余</th><th></th></tr></thead>
+        <thead><tr><th>任务</th><th>所属目标</th><th>估算方式</th><th>预计</th><th>实际</th><th>剩余</th><th>截止</th><th></th></tr></thead>
         <tbody></tbody></table>`;
     const tb = container.querySelector('tbody');
     for (const r of rows) {
@@ -61,8 +74,9 @@
         <td><span class="goal-color-dot" style="display:inline-block;vertical-align:-1px;margin-right:5px;background:${PB.views.goalColor(r.goal.id)}"></span>${U.esc(r.goal.title)}</td>
         <td>${r.task ? PB.est.sourceLabel(r.task) + (r.task.qty && r.task.qty.n ? `<br><span class="muted" style="font-size:11px">${U.esc(PB.est.estimate(r.task.qty)?.detail || '')}</span>` : '') : '<span class="muted">目标直接估算</span>'}</td>
         <td>${r.est.toFixed(1)}h</td>
-        <td class="muted">${r.done.toFixed(1)}h</td>
+        <td>${r.task && r.task.actualHours ? `<b>${r.task.actualHours.toFixed(1)}h</b>` : '<span class="muted">—</span>'}</td>
         <td><b>${r.hours.toFixed(1)}h</b></td>
+        <td>${r.task && r.task.due ? U.esc(r.task.due) : (r.goal.deadline ? U.esc(r.goal.deadline) : '—')}</td>
         <td>${r.task ? '<button class="btn sm">调整</button>' : ''}</td>`;
       if (r.task) tr.querySelector('button').onclick = () => taskModal(r.task, () => goals(document.getElementById('mainContent')));
       tb.appendChild(tr);
@@ -110,6 +124,7 @@
           <span class="muted small">${st.total ? `${st.done.toFixed(1)}/${st.total.toFixed(1)}h（${pct}%）· 每周需 ${st.requiredPerWeek.toFixed(1)}h` : '未设工时'}</span>
         </div>
         ${g.note ? `<div class="muted small" style="margin-bottom:6px">${U.esc(g.note)}</div>` : ''}
+        ${materialsLine(g) ? `<div class="small" style="margin-bottom:6px">📎 相关资料：${materialsLine(g)}</div>` : ''}
         <div class="divider" style="margin:8px 0"></div>
         <div data-tasks></div>
         <button class="btn sm" data-act="addTask" style="margin-top:8px">＋ 添加任务</button>`;
@@ -117,16 +132,32 @@
       card.querySelector('[data-act="del"]').onclick = () => {
         const tasks = PB.store.get().tasks.filter(t => t.goalId === g.id);
         UI.confirmBox(`删除目标「${U.esc(g.title)}」？${tasks.length ? `其下 ${tasks.length} 个任务将一并删除。` : ''}`, () => {
+          PB.store.snapshot();
           const stt = PB.store.get();
           stt.goals = stt.goals.filter(x => x.id !== g.id);
           stt.tasks = stt.tasks.filter(t => t.goalId !== g.id);
-          PB.store.save(); UI.toast('已删除目标', 'ok'); refresh();
+          PB.store.save();
+          UI.toast('已删除目标', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'goals'); } });
+          refresh();
         });
       };
       card.querySelector('[data-act="addTask"]').onclick = () => taskModal(null, refresh, g.id);
       renderTasks(card.querySelector('[data-tasks]'), g, refresh);
       container.appendChild(card);
     }
+  }
+
+  /* 目标关联的资料（来自资料库科目）拼成一行链接 */
+  function materialsLine(g) {
+    if (!g.subjectId) return '';
+    const s = PB.store.get();
+    const mats = s.materials.filter(m => m.subjectId === g.subjectId);
+    if (!mats.length) return '';
+    return mats.slice(0, 5).map(m =>
+      m.type === 'link'
+        ? `<a href="${U.esc(m.url)}" target="_blank" rel="noopener" title="${U.esc(m.content || '')}">🔗${U.esc(m.title)}</a>`
+        : `<span title="${U.esc(m.content || '')}">📝${U.esc(m.title)}</span>`
+    ).join(' · ');
   }
 
   function renderTasks(container, goal, refresh) {
@@ -141,7 +172,7 @@
         <input type="checkbox" ${rem <= 0.05 ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent)">
         <div class="main">
           <div class="title" style="font-size:13.5px">${U.esc(t.title)}</div>
-          <div class="meta">${PB.est.sourceLabel(t)} · 预计 ${(t.estHours || 0).toFixed(1)}h · 已投入 ${(t.doneHours || 0).toFixed(1)}h · 剩余 <b style="color:${rem <= 0.05 ? 'var(--green)' : 'var(--ink)'}">${rem.toFixed(1)}h</b>${t.qty && t.qty.n ? ` · ${U.esc(t.qty.n)}×${U.esc(PB.est.UNIT_LABEL[t.qty.unit] || '单位')}` : ''} · ${t.preferred === 'fragment' ? '适合碎片' : '优先整块'}</div>
+          <div class="meta">${PB.est.sourceLabel(t)} · 预计 ${(t.estHours || 0).toFixed(1)}h · 已投入 ${(t.doneHours || 0).toFixed(1)}h · 剩余 <b style="color:${rem <= 0.05 ? 'var(--green)' : 'var(--ink)'}">${rem.toFixed(1)}h</b>${t.qty && t.qty.n ? ` · ${U.esc(t.qty.n)}×${U.esc(PB.est.UNIT_LABEL[t.qty.unit] || '单位')}` : ''} · ${t.preferred === 'fragment' ? '适合碎片' : '优先整块'}${t.due ? ` · <span style="color:var(--orange)">截止 ${U.esc(t.due)}</span>` : ''}${t.note ? ` · <span class="muted">${U.esc(t.note)}</span>` : ''}${materialsLine(goal) ? `<br>📎 相关资料：${materialsLine(goal)}` : ''}</div>
         </div>
         <button class="btn sm">编辑</button>`;
       row.querySelector('input[type=checkbox]').onchange = e => {
@@ -201,7 +232,10 @@
       title: existing ? '编辑任务' : '添加任务',
       bodyHTML: `
         <div class="field"><label>任务名称</label><input id="fTitle" value="${U.esc(t.title || '')}" placeholder="如：刷完错题本（高数上）"></div>
-        <div class="field"><label>所属目标</label><select id="fGoal">${s.goals.map(g=>`<option value="${g.id}" ${(t.goalId||presetGoalId)===g.id?'selected':''}>${U.esc(g.title)}</option>`).join('')}</select></div>
+        <div class="inline-form">
+          <div class="field" style="flex:1"><label>所属目标</label><select id="fGoal">${s.goals.map(g=>`<option value="${g.id}" ${(t.goalId||presetGoalId)===g.id?'selected':''}>${U.esc(g.title)}</option>`).join('')}</select></div>
+          <div class="field" style="flex:1"><label>任务截止日（可选，优先于目标截止）</label><input id="fDue" type="date" value="${t.due || ''}"></div>
+        </div>
         <div class="divider"></div>
         <div class="muted small" style="margin-bottom:6px"><b>工时估算</b>：填工作量按"数量 × 速率"自动算，或直接填预计小时数（二选一，估算优先）</div>
         <div class="inline-form">
@@ -232,9 +266,12 @@
       },
       footer: existing ? [
         { label: '删除任务', cls: 'danger', onClick: (close) => { close(); UI.confirmBox('删除该任务？', () => {
+          PB.store.snapshot();
           const st = PB.store.get();
           st.tasks = st.tasks.filter(x => x.id !== existing.id);
-          PB.store.save(); UI.toast('已删除', 'ok'); if (onDone) onDone();
+          PB.store.save();
+          UI.toast('已删除任务', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'goals'); } });
+          if (onDone) onDone();
         }); } },
         { label: '保存', cls: 'primary', onClick: (close) => {
           const title = UI.fv(document, '#fTitle');
@@ -250,7 +287,7 @@
           }
           const st = PB.store.get();
           Object.assign(st.tasks.find(x => x.id === existing.id), {
-            title, goalId: UI.fv(document, '#fGoal'), estHours, qty, estFrom,
+            title, goalId: UI.fv(document, '#fGoal'), estHours, qty, estFrom, due: UI.fv(document, '#fDue'),
             preferred: UI.fv(document, '#fPref'), priority: UI.fv(document, '#fPrio'),
           });
           PB.store.save(); close(); UI.toast(`已保存，预计 ${estHours.toFixed(1)} 小时`, 'ok'); if (onDone) onDone();
@@ -394,9 +431,12 @@
             </div>
             <button class="btn sm">删除</button>`;
           row.querySelector('button').onclick = () => UI.confirmBox(`删除资料「${U.esc(mt.title)}」？`, () => {
+            PB.store.snapshot();
             const stt = PB.store.get();
             stt.materials = stt.materials.filter(x => x.id !== mt.id);
-            PB.store.save(); materials(root);
+            PB.store.save();
+            UI.toast('已删除资料', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'materials'); } });
+            materials(root);
           });
           mats.appendChild(row);
         }
@@ -404,10 +444,13 @@
       card.querySelector('[data-act="addMat"]').onclick = () => materialModal(sub.id, null, () => materials(root));
       card.querySelector('[data-act="edit"]').onclick = () => subjectModal(sub, () => materials(root));
       card.querySelector('[data-act="del"]').onclick = () => UI.confirmBox(`删除科目「${U.esc(sub.name)}」及其所有资料？`, () => {
+        PB.store.snapshot();
         const stt = PB.store.get();
         stt.subjects = stt.subjects.filter(x => x.id !== sub.id);
         stt.materials = stt.materials.filter(x => x.subjectId !== sub.id);
-        PB.store.save(); UI.toast('已删除', 'ok'); materials(root);
+        PB.store.save();
+        UI.toast('已删除科目', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'materials'); } });
+        materials(root);
       });
       container.appendChild(card);
     }
