@@ -94,7 +94,7 @@ details.howto .gnote{color:#aaa;font-size:12px;line-height:1.9;margin-top:4px}
     <div class="hstep">② 打开并登录 <b>www.5idream.net</b>（到梦空间网页版，任意页面都行）；</div>
     <div class="hstep">③ 点书签栏里的「🪐 到梦空间 → 面板数据」——自动抓取你的活跃任务，下载 <b>dmkj_panel_data.json</b>；</div>
     <div class="hstep">④ 回到本面板点「导入」选文件（或「从剪贴板导入」）。</div>
-    <div class="gnote">手机浏览器不方便装书签：在电脑上把 JSON 抓好后发给手机，或直接用文件导入。抓取只在到梦空间网页本身进行，不经过任何第三方。</div>
+    <div class="gnote">手机上用：电脑上抓好数据后交给 ZCode 推送，会得到一条 <b>?s=</b> 短链接，手机浏览器打开即用（数据随后也存在手机本机）。抓取只在到梦空间网页本身进行，不经过任何第三方；带数据的链接等于钥匙，请勿公开传播。</div>
   </details>
   <div class="gnote">没有数据文件？在 ZCode 里说「刷新活动面板」即可从到梦空间网页版导出一份。<br>
   面板只读展示快照，报名 / 签到 / 提交仍以【到梦空间 APP】为准。</div>
@@ -517,5 +517,22 @@ document.querySelectorAll(".aiopen").forEach(function(b){
   });
 });
 if(loadData()){ hideGate(); refresh(); } else { showGate(); }
+/* 手机链接模式：?s=<token> → 自动拉取 data-<token>.json 装入本机（链接即钥匙，别公开传播） */
+(function(){
+  var m = location.search.match(/[?&]s=([a-z0-9]{4,32})/);
+  if(!m) return;
+  var file = "data-" + m[1] + ".json";
+  fetch(file, { credentials: "same-origin" }).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(function(arr){
+    var cur = ls(K_DATA);
+    if(cur && !confirm("本机已有一份数据，用链接里的新数据覆盖吗？\n（勾选记录会保留）")) return;
+    applyData(arr);
+    toast("已载入链接携带的数据 ✓ 已存到这台设备");
+  }).catch(function(e){
+    toast("链接数据加载失败(" + e.message + ")，请用「导入文件」方式");
+  });
+})();
 setInterval(function(){ if(DATA.length && !document.querySelector("details[open]")&&!document.getElementById("q").matches(":focus")) refresh(); },60000);
 </script></body></html>
