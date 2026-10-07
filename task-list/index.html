@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的任务表</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"WenQuanYi Micro Hei","PingFang SC","Microsoft YaHei",sans-serif;
+background:#eef1f6;min-height:100vh;padding:20px;color:#222}
+.wrap{max-width:1240px;margin:0 auto;background:#fff;border-radius:14px;
+box-shadow:0 8px 30px rgba(20,30,60,.10);padding:22px 24px 28px}
+header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+h1{font-size:21px}
+h1 small{font-weight:400;font-size:12.5px;color:#999;margin-left:8px}
+.tools{display:flex;gap:7px;flex-wrap:wrap}
+.btn{border:1px solid #d8dde6;background:#fff;color:#555;padding:7px 13px;border-radius:8px;
+cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+.btn:hover{border-color:#3f5bd8;color:#3f5bd8}
+.btn.primary{background:#3f5bd8;color:#fff;border-color:#3f5bd8}
+.btn.primary:hover{background:#3350cb;color:#fff}
+.btn.danger:hover{border-color:#db4a4f;color:#db4a4f}
+.btn.solid-danger{background:#db4a4f;color:#fff;border-color:#db4a4f}
+.btn.solid-danger:hover{background:#c63c41;color:#fff}
+.btn.sm{padding:5px 10px;font-size:12.5px}
+
+/* 视图切换 */
+.tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid #e8ecf3;padding-bottom:10px}
+.tab{border:1px solid #dcE1ea;background:#fff;color:#666;padding:7px 16px;border-radius:8px;
+cursor:pointer;font-size:13.5px;font-family:inherit}
+.tab.on{background:#3f5bd8;color:#fff;border-color:#3f5bd8}
+
+/* 统计 */
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.card{flex:1;min-width:104px;background:#f7f9fc;border:1px solid #e8ecf3;border-radius:10px;
+padding:10px 14px;text-align:center}
+.card .v{font-size:20px;font-weight:700;color:#222;line-height:1.3}
+.card .l{font-size:12px;color:#8b93a7;margin-top:2px}
+.card.warn .v{color:#e07b14}.card.late .v{color:#db4a4f}.card.ok .v{color:#1f9d5b}
+.card.link{cursor:pointer}
+.card.link:hover{border-color:#3f5bd8;background:#f2f6ff}
+
+/* 快速添加 */
+.quick{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.quick input,.quick select{padding:8px 11px;border:1px solid #dcE1ea;border-radius:8px;
+font-size:13.5px;font-family:inherit;outline:none;background:#fff}
+.quick input:focus,.quick select:focus{border-color:#3f5bd8}
+.q-name{flex:1;min-width:200px}
+
+/* 筛选 */
+.filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.filters .lb{font-size:12.5px;color:#8b93a7}
+.chip{padding:5px 13px;border:1px solid #dcE1ea;border-radius:16px;background:#fff;
+font-size:12.5px;cursor:pointer;color:#666;font-family:inherit;transition:.15s}
+.chip.on{background:#3f5bd8;color:#fff;border-color:#3f5bd8}
+.chip.tm.on{background:#e07b14;border-color:#e07b14}
+.filters select{padding:5px 9px;border:1px solid #dcE1ea;border-radius:14px;font-size:12.5px;
+font-family:inherit;background:#fff;outline:none;color:#555}
+
+/* 表格 */
+.tbox{overflow-x:auto;border:1px solid #e8ecf3;border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:1060px}
+th{background:#f3f6fb;color:#5a6377;font-weight:600;font-size:12.5px;padding:10px 8px;
+text-align:left;white-space:nowrap;border-bottom:1px solid #e5eaf2;position:sticky;top:0;z-index:2}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:#3f5bd8}
+th .ar{color:#3f5bd8;font-size:11px}
+td{padding:8px;border-bottom:1px solid #f0f3f8;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafcff}
+tr.done td{background:#fafbfa;opacity:.62}
+tr.done .nm{text-decoration:line-through;color:#9aa2b3}
+tr.late td{background:#fff6f6}
+tr.late:hover td{background:#fff0f0}
+tr.today td{background:#fffaf0}
+
+/* 单元格编辑 */
+td[contenteditable="true"]{cursor:text;border-radius:5px;transition:.12s}
+td[contenteditable="true"]:hover{background:#eef2fb}
+td[contenteditable="true"]:focus{background:#fff8e1;outline:2px solid #f0c33c;outline-offset:-2px}
+.nm{font-weight:500;word-break:break-all}
+.ph{color:#c3c9d6}
+.note-td{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5f6779}
+
+select.cell-sel,input.cell-inp{border:1px solid transparent;background:transparent;border-radius:6px;
+padding:4px 6px;font-size:13px;font-family:inherit;color:#333;outline:none;width:100%}
+select.cell-sel:hover,input.cell-inp:hover{border-color:#d5dbE6;background:#fff}
+select.cell-sel:focus,input.cell-inp:focus{border-color:#3f5bd8;background:#fff}
+
+.pill{display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;color:#fff;white-space:nowrap}
+.p-high{background:#db4a4f}.p-mid{background:#e08a1e}.p-low{background:#8b93a7}
+.st{display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;white-space:nowrap;border:1px solid}
+.st-todo{color:#6b7488;border-color:#d5dae4;background:#f4f6fa}
+.st-doing{color:#2f6fd0;border-color:#c3d8f7;background:#eaf2fe}
+.st-done{color:#1f9d5b;border-color:#bfead4;background:#e9f8f0}
+
+.prog{display:flex;align-items:center;gap:7px}
+.bar{flex:1;height:6px;background:#e9edf4;border-radius:3px;overflow:hidden;min-width:46px}
+.bar i{display:block;height:100%;background:#3f5bd8;border-radius:3px}
+.bar i.f{background:#1f9d5b}
+.pnum{font-size:12px;color:#8b93a7;width:34px;text-align:right}
+
+.ck{width:16px;height:16px;cursor:pointer;accent-color:#1f9d5b}
+.xbtn{border:none;background:none;color:#c3c9d6;cursor:pointer;font-size:15px;padding:2px 5px;border-radius:5px}
+.xbtn:hover{background:#fdecec;color:#db4a4f}
+.ibtn{border:1px solid #dfe4ec;background:#fff;color:#8b93a7;cursor:pointer;font-size:11.5px;
+padding:2px 7px;border-radius:11px;font-family:inherit;white-space:nowrap}
+.ibtn:hover{border-color:#3f5bd8;color:#3f5bd8;background:#f2f6ff}
+.ibtn.has{color:#3f5bd8;border-color:#c3d3f7;background:#eef4ff}
+.due-late{color:#db4a4f;font-weight:600}
+.due-today{color:#e07b14;font-weight:600}
+
+.empty{text-align:center;padding:46px 20px;color:#aab2c2}
+.empty .ic{font-size:42px;margin-bottom:8px}
+.tip{margin-top:14px;font-size:12px;color:#a0a7b6;line-height:1.8}
+
+/* ---- 课表 ---- */
+.tt-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tt-head .rng{font-size:13.5px;color:#5a6377}
+.tt-head .rng b{color:#222}
+.tt{display:grid;grid-template-columns:44px repeat(7,1fr);grid-template-rows:auto repeat(12,42px);
+border:1px solid #e8ecf3;border-radius:10px;overflow:hidden;background:#fff}
+.ttc{border-right:1px solid #eef1f6;border-bottom:1px solid #eef1f6;position:relative}
+.ttc:nth-child(8n){border-right:none}
+.ttc.th{background:#f3f6fb;text-align:center;font-size:12.5px;color:#5a6377;padding:6px 2px;font-weight:600}
+.ttc.th .dt{display:block;font-size:10.5px;color:#a3abbb;font-weight:400;margin-top:1px}
+.ttc.th.today{background:#fff4e2;color:#a35c00}
+.ttc.sec{background:#fafbfd;text-align:center;font-size:11.5px;color:#a3abbb;padding-top:4px}
+.ttc.slot{cursor:pointer}
+.ttc.slot:hover{background:#f2f6ff}
+.ttc.slot.today-col{background:#fffcf5}
+.blk{margin:2px;border-radius:7px;padding:4px 6px;font-size:12px;line-height:1.35;cursor:pointer;
+overflow:hidden;border-left:3px solid #3f5bd8;background:#eef4ff;color:#2b3550;z-index:2}
+.blk:hover{filter:brightness(.96)}
+.blk .nm2{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.blk .pl{font-size:10.5px;color:#6b7488;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tt-paste{margin-bottom:12px;border:1px dashed #d5dbe6;border-radius:10px;padding:12px 14px;background:#fbfcfe}
+.tt-paste textarea{width:100%;border:1px solid #dcE1ea;border-radius:8px;padding:8px 10px;font-size:13px;
+font-family:inherit;outline:none;resize:vertical}
+.tt-empty{padding:30px;text-align:center;color:#aab2c2;font-size:13.5px}
+
+/* ---- 弹窗 ---- */
+.modal{position:fixed;inset:0;background:rgba(20,28,50,.38);display:none;align-items:center;
+justify-content:center;z-index:50;padding:18px}
+.modal.show{display:flex}
+.mbox{background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(20,30,60,.28);width:520px;max-width:100%;
+max-height:88vh;overflow:auto;padding:20px 22px}
+.mbox.wide{width:620px}
+.mbox h3{font-size:17px;margin-bottom:12px}
+.mmsg{font-size:13.5px;color:#5a6377;line-height:1.7;margin-bottom:16px}
+.mrow{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.dgrid .full{grid-column:1/-1}
+.dgrid label,.fl{display:block;font-size:12px;color:#8b93a7;margin-bottom:3px}
+.dgrid input,.dgrid select,.dgrid textarea{width:100%;padding:7px 10px;border:1px solid #dcE1ea;
+border-radius:8px;font-size:13.5px;font-family:inherit;outline:none;color:#222;background:#fff}
+.dgrid input:focus,.dgrid select:focus,.dgrid textarea:focus{border-color:#3f5bd8}
+.dgrid textarea{resize:vertical;line-height:1.6}
+.subs{border:1px solid #e8ecf3;border-radius:10px;padding:8px 10px;margin-top:4px}
+.sub{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px dashed #f0f3f8}
+.sub:last-child{border-bottom:none}
+.sub .si{flex:1;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 6px;
+font-size:13px;font-family:inherit;color:#222;outline:none}
+.sub .si:hover{border-color:#dfe4ec}.sub .si:focus{border-color:#3f5bd8;background:#fff}
+.sub .si.dn{color:#9aa2b3;text-decoration:line-through}
+.sub .ck{width:15px;height:15px}
+.sub-new{display:flex;gap:8px;margin-top:8px}
+.sub-new input{flex:1}
+.hint{font-size:12px;color:#a0a7b6;margin-top:6px}
+
+/* ---- 底部提示条（带撤销） ---- */
+.toastbar{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+background:#2b3550;color:#fff;padding:10px 16px;border-radius:10px;font-size:13.5px;display:flex;
+align-items:center;gap:14px;box-shadow:0 8px 26px rgba(20,30,60,.3);opacity:0;pointer-events:none;
+transition:.22s;z-index:60;max-width:92vw}
+.toastbar.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toastbar button{background:none;border:1px solid rgba(255,255,255,.45);color:#fff;padding:3px 12px;
+border-radius:7px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.toastbar button:hover{background:rgba(255,255,255,.14)}
+
+@media(max-width:760px){.wrap{padding:14px}.dgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>✅ 我的任务表<small>点任意格子直接改，改完自动保存</small></h1>
+  <div class="tools">
+    <button class="btn" id="expCsv">导出CSV</button>
+    <button class="btn" id="expJson">导出备份</button>
+    <button class="btn" id="impJson">导入备份</button>
+    <button class="btn danger" id="clrDone">清除已完成</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab on" data-v="task">📋 任务</button>
+  <button class="tab" data-v="tt">📅 课表</button>
+</div>
+
+<!-- ==================== 任务视图 ==================== -->
+<div id="v-task">
+
+  <div class="stats" id="stats"></div>
+
+  <div class="quick">
+    <input class="q-name" id="qName" placeholder="输入任务后按回车快速添加…">
+    <select id="qCat"></select>
+    <select id="qCourse"></select>
+    <select id="qPri"><option value="high">高优先级</option><option value="mid" selected>中优先级</option><option value="low">低优先级</option></select>
+    <input type="date" id="qDue">
+    <button class="btn primary" id="qAdd">＋ 添加</button>
+  </div>
+
+  <div class="filters">
+    <span class="lb">分类：</span>
+    <button class="chip on" data-cat="all">全部</button>
+    <button class="chip" data-cat="考研复习">考研复习</button>
+    <button class="chip" data-cat="班助工作">班助工作</button>
+    <button class="chip" data-cat="党员工作">党员工作</button>
+    <button class="chip" data-cat="课程作业">课程作业</button>
+    <button class="chip" data-cat="数模竞赛">数模竞赛</button>
+    <button class="chip" data-cat="其他">其他</button>
+    <span class="lb" style="margin-left:8px">状态：</span>
+    <button class="chip on" data-st="all">全部</button>
+    <button class="chip" data-st="todo">待办</button>
+    <button class="chip" data-st="doing">进行中</button>
+    <button class="chip" data-st="done">已完成</button>
+    <span class="lb" style="margin-left:8px">时间：</span>
+    <button class="chip tm on" data-tm="all">全部</button>
+    <button class="chip tm" data-tm="today">今天到期</button>
+    <button class="chip tm" data-tm="week">本周到期</button>
+    <button class="chip tm" data-tm="late">已逾期</button>
+    <button class="chip tm" data-tm="none">无日期</button>
+    <select id="fCourse" title="按课程筛选"></select>
+    <input id="search" placeholder="🔍 搜索任务…" style="margin-left:auto;padding:6px 11px;border:1px solid #dcE1ea;border-radius:8px;font-size:13px;font-family:inherit;outline:none;width:170px">
+  </div>
+
+  <div class="tbox">
+  <table>
+    <thead><tr>
+      <th style="width:38px"></th>
+      <th style="width:44px">#</th>
+      <th class="sortable" data-sort="name">任务名称 <span class="ar"></span></th>
+      <th class="sortable" data-sort="cat" style="width:92px">分类 <span class="ar"></span></th>
+      <th class="sortable" data-sort="course" style="width:96px">课程 <span class="ar"></span></th>
+      <th class="sortable" data-sort="pri" style="width:78px">优先级 <span class="ar"></span></th>
+      <th class="sortable" data-sort="due" style="width:124px">截止日期 <span class="ar"></span></th>
+      <th class="sortable" data-sort="status" style="width:90px">状态 <span class="ar"></span></th>
+      <th style="width:104px">进度</th>
+      <th style="width:210px">备注</th>
+      <th style="width:60px"></th>
+      <th style="width:38px"></th>
+    </tr></thead>
+    <tbody id="tb"></tbody>
+  </table>
+  </div>
+
+  <div class="tip">
+    💾 所有改动自动保存在本机浏览器，关掉页面也不丢；换电脑用"导出备份 / 导入备份"（课表会一起打包）。<br>
+    ✏️ 名称、备注、进度数字直接点着改；分类/课程/优先级/状态/日期用下拉框改；点表头可排序（默认按截止日期）。<br>
+    📝 点「详情」打开大面板：多行备注 + 子任务清单，勾子任务会自动算进度。<br>
+    ⚠️ 逾期任务整行标红，今天到期的标橙，一眼看出该先干啥。删除会先问一次，删完还能撤销。
+  </div>
+</div>
+
+<!-- ==================== 课表视图 ==================== -->
+<div id="v-tt" style="display:none">
+  <div class="tt-head">
+    <span class="rng">本周 <b id="ttRange"></b></span>
+    <div style="flex:1"></div>
+    <button class="btn primary sm" id="ttAdd">＋ 添加课程</button>
+    <button class="btn sm" id="ttPasteToggle">📋 粘贴课表</button>
+    <button class="btn danger sm" id="ttClear">清空课表</button>
+  </div>
+
+  <div class="tt-paste" id="ttPaste" style="display:none">
+    <div class="hint" style="margin:0 0 6px">从教务系统复制出来的课表直接粘进来，一行一门课。
+      识别「周一 / 星期二 / 周3」和「1-2 节 / 第3-4节 / 5节」，剩下的按顺序当课程名、地点、老师。</div>
+    <textarea id="ttText" rows="6" placeholder="周一 1-2 高等数学 教三301 张老师
+周三 第3-4节 线性代数 教二205 李老师
+周四 5-6 Java程序设计 实验楼B305 王老师
+周五 3-4 大学英语 外语楼402"></textarea>
+    <div class="row" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn primary sm" id="ttParse">解析</button>
+      <button class="btn sm" id="ttPasteClear">清空</button>
+    </div>
+    <div id="ttPreview" style="margin-top:10px"></div>
+  </div>
+
+  <div id="ttGrid"></div>
+
+  <div class="tip">
+    📅 点空格子加课，点课程块改课/删课；今天的那一列会标黄。<br>
+    🔗 课表里的课程会自动出现在任务的「课程」下拉里，任务挂到课程后可按课程筛选。
+  </div>
+</div>
+
+</div>
+
+<input type="file" id="fileIn" accept="application/json" style="display:none">
+
+<div class="modal" id="modal"><div class="mbox" id="mbox"></div></div>
+<div class="toastbar" id="toastbar"></div>
+
+<script>
+const CATS=['考研复习','班助工作','党员工作','课程作业','数模竞赛','其他'];
+const PRI={high:'高',mid:'中',low:'低'}, PRI_R={high:0,mid:1,low:2};
+const ST={todo:'待办',doing:'进行中',done:'已完成'}, ST_R={doing:0,todo:1,done:2};
+const DAYN=[{i:1,n:'一'},{i:2,n:'二'},{i:3,n:'三'},{i:4,n:'四'},{i:5,n:'五'},{i:6,n:'六'},{i:7,n:'日'}];
+const SEC_MAX=12;
+
+const pad=n=>String(n).padStart(2,'0');
+const dateStr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayStr=()=>dateStr(new Date());
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* 本周一 ~ 本周日 */
+function weekRange(){
+  const d=new Date(), off=(d.getDay()+6)%7;
+  const s=new Date(d); s.setDate(d.getDate()-off);
+  const e=new Date(s); e.setDate(s.getDate()+6);
+  return [dateStr(s), dateStr(e)];
+}
+function isLate(t,T){ return !!t.due && t.status!=='done' && t.due<T; }
+function isToday(t,T){ return !!t.due && t.status!=='done' && t.due===T; }
+
+/* ---------------- 数据 ---------------- */
+const K_TASK='tk_data', K_COURSE='tk_courses', K_UI='tk_ui';
+function save(){
+  try{
+    localStorage.setItem(K_TASK,JSON.stringify(tasks));
+    localStorage.setItem(K_COURSE,JSON.stringify(courses));
+    localStorage.setItem(K_UI,JSON.stringify(ui));
+  }catch(e){}
+}
+
+let tasks=JSON.parse(localStorage.getItem(K_TASK))||null;
+let courses=JSON.parse(localStorage.getItem(K_COURSE))||[];
+let ui=JSON.parse(localStorage.getItem(K_UI))||{view:'task'};
+
+if(!tasks){
+  tasks=[
+    {id:1,name:'数学分析：级数部分例题 20 道',cat:'考研复习',course:'',pri:'high',due:'',status:'doing',prog:40,note:'重点看判敛法',subs:[]},
+    {id:2,name:'高等代数：线性变换章节复盘',cat:'考研复习',course:'',pri:'high',due:'',status:'todo',prog:0,note:'',subs:[]},
+    {id:3,name:'整理班级本周考勤表',cat:'班助工作',course:'',pri:'mid',due:'',status:'todo',prog:0,note:'',subs:[]},
+    {id:4,name:'下班党员谈话记录归档',cat:'党员工作',course:'',pri:'mid',due:'',status:'todo',prog:0,note:'',subs:[]},
+    {id:5,name:'数模国赛 A 题建模思路整理',cat:'数模竞赛',course:'',pri:'mid',due:'',status:'doing',prog:30,note:'中药材烘干',subs:[]}
+  ];
+  const t=new Date(); t.setDate(t.getDate()+3); tasks[0].due=dateStr(t);
+  const y=new Date(); y.setDate(y.getDate()-1); tasks[2].due=dateStr(y);
+  save();
+}
+tasks.forEach(t=>{ if(!Array.isArray(t.subs)) t.subs=[]; if(t.course==null) t.course=''; });
+courses=courses.filter(c=>c&&c.name);
+
+let fCat='all', fSt='all', fTm='all', fCourse='all', kw='', sortKey='due', sortAsc=true;
+const tb=document.getElementById('tb');
+const $=id=>document.getElementById(id);
+
+/* 课程名清单（去重，按课表顺序） */
+function courseNames(){
+  const s=[],seen={};
+  courses.forEach(c=>{ if(c.name&&!seen[c.name]){ seen[c.name]=1; s.push(c.name); } });
+  tasks.forEach(t=>{ if(t.course&&!seen[t.course]){ seen[t.course]=1; s.push(t.course); } });
+  return s;
+}
+
+function visible(){
+  const T=todayStr(), [w0,w6]=weekRange();
+  return tasks.filter(t=>{
+    if(fCat!=='all'&&t.cat!==fCat) return false;
+    if(fSt !=='all'&&t.status!==fSt) return false;
+    if(fCourse!=='all'&&(t.course||'')!==fCourse) return false;
+    if(fTm==='today'&&!(t.due&&t.due===T&&t.status!=='done')) return false;
+    if(fTm==='week' &&!(t.due&&t.due>=w0&&t.due<=w6)) return false;
+    if(fTm==='late' &&!isLate(t,T)) return false;
+    if(fTm==='none' &&!!t.due) return false;
+    if(kw){
+      const hay=(t.name+' '+(t.note||'')+' '+t.cat+' '+(t.course||'')+' '+t.subs.map(s=>s.text).join(' ')).toLowerCase();
+      if(!hay.includes(kw.toLowerCase())) return false;
+    }
+    return true;
+  }).sort((a,b)=>{
+    let r=0;
+    if(sortKey==='due'){
+      const av=a.due||'', bv=b.due||'';
+      if(!av&&!bv) return a.name.localeCompare(b.name,'zh');
+      if(!av) return 1;            // 没填日期的永远排在最后
+      if(!bv) return -1;
+      return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    if(sortKey==='pri')         r=PRI_R[a.pri]-PRI_R[b.pri];
+    else if(sortKey==='status') r=ST_R[a.status]-ST_R[b.status];
+    else if(sortKey==='cat')    r=(a.cat||'').localeCompare(b.cat||'','zh');
+    else if(sortKey==='course') r=(a.course||'').localeCompare(b.course||'','zh');
+    else if(sortKey==='name')   r=a.name.localeCompare(b.name,'zh');
+    return sortAsc?r:-r;
+  });
+}
+
+function render(){
+  const list=visible();
+  const T=todayStr();
+  if(!list.length){
+    tb.innerHTML='<tr><td colspan="12"><div class="empty"><div class="ic">🗒️</div>暂无任务，换个筛选条件或上面输入框加一条</div></td></tr>';
+  }else{
+    tb.innerHTML=list.map((t,i)=>{
+      const late=isLate(t,T), tod=isToday(t,T);
+      const cls=[t.status==='done'?'done':'', late?'late':'', tod?'today':''].join(' ');
+      const subs=t.subs||[], sd=subs.filter(s=>s.done).length;
+      const note=t.note||'';
+      return '<tr class="'+cls+'" data-id="'+t.id+'">'+
+        '<td><input type="checkbox" class="ck" '+(t.status==='done'?'checked':'')+' data-act="done" data-id="'+t.id+'" title="标记完成"></td>'+
+        '<td style="color:#b6bdcc;font-size:12px">'+(i+1)+'</td>'+
+        '<td><div class="nm" contenteditable="true" data-f="name" data-id="'+t.id+'">'+esc(t.name)+'</div>'+
+            (subs.length?'<button class="ibtn has" data-act="detail" data-id="'+t.id+'" style="margin-top:4px">子任务 '+sd+'/'+subs.length+'</button>':'')+
+        '</td>'+
+        '<td><select class="cell-sel" data-f="cat" data-id="'+t.id+'">'+
+            CATS.map(c=>'<option '+(c===t.cat?'selected':'')+'>'+c+'</option>').join('')+'</select></td>'+
+        '<td><select class="cell-sel" data-f="course" data-id="'+t.id+'"><option value="">—</option>'+
+            courseNames().map(c=>'<option value="'+esc(c)+'" '+(c===(t.course||'')?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></td>'+
+        '<td><select class="cell-sel" data-f="pri" data-id="'+t.id+'">'+
+            Object.keys(PRI).map(k=>'<option value="'+k+'" '+(k===t.pri?'selected':'')+'>'+PRI[k]+'</option>').join('')+'</select></td>'+
+        '<td><input type="date" class="cell-inp '+(late?'due-late':(tod?'due-today':''))+'" data-f="due" data-id="'+t.id+'" value="'+esc(t.due)+'"></td>'+
+        '<td><select class="cell-sel" data-f="status" data-id="'+t.id+'">'+
+            Object.keys(ST).map(k=>'<option value="'+k+'" '+(k===t.status?'selected':'')+'>'+ST[k]+'</option>').join('')+'</select></td>'+
+        '<td><div class="prog"><div class="bar"><i class="'+(t.prog>=100?'f':'')+'" style="width:'+(t.prog||0)+'%"></i></div>'+
+            '<span contenteditable="true" class="pnum" data-f="prog" data-id="'+t.id+'">'+(t.prog||0)+'</span></div></td>'+
+        '<td class="note-td" contenteditable="true" data-f="note" data-id="'+t.id+'" title="'+esc(note)+'">'+
+            (note?esc(note):'<span class="ph">备注…</span>')+'</td>'+
+        '<td><button class="ibtn" data-act="detail" data-id="'+t.id+'">详情</button></td>'+
+        '<td><button class="xbtn" data-act="del" data-id="'+t.id+'" title="删除">✕</button></td>'+
+      '</tr>';
+    }).join('');
+  }
+  bindCells(); stats();
+}
+
+function bindCells(){
+  tb.querySelectorAll('[contenteditable="true"]').forEach(td=>{
+    const f=td.dataset.f;
+    if(f==='note'&&!td.textContent.trim()){
+      td.onfocus=()=>{ if(!td.textContent.trim()) td.textContent=''; };
+    }
+    td.onblur=()=>{
+      const t=tasks.find(x=>x.id==td.dataset.id); if(!t) return;
+      let v=td.textContent.trim();
+      if(f==='prog'){ v=Math.max(0,Math.min(100,parseInt(v)||0));
+        if(v>=100) t.status='done'; else if(t.status==='done'&&v<100) t.status='doing'; }
+      if(f==='name'&&v===''){ render(); return; }
+      t[f]=v; save(); render();
+    };
+    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+  tb.querySelectorAll('.cell-sel,.cell-inp').forEach(el=>{
+    el.onchange=()=>{
+      const t=tasks.find(x=>x.id==el.dataset.id); if(!t) return;
+      t[el.dataset.f]=el.value;
+      if(el.dataset.f==='status'&&el.value==='done') t.prog=100;
+      if(el.dataset.f==='status'&&el.value!=='done'&&t.prog>=100) t.prog=80;
+      save(); render();
+    };
+  });
+  tb.querySelectorAll('[data-act]').forEach(el=>{
+    const id=el.dataset.id, act=el.dataset.act;
+    if(act==='del')        el.onclick=()=>askDel(id);
+    else if(act==='detail')el.onclick=()=>openDetail(id);
+    else if(act==='done')  el.onchange=()=>toggleDone(id);
+  });
+}
+
+function stats(){
+  const T=todayStr();
+  const done=tasks.filter(t=>t.status==='done').length;
+  const late=tasks.filter(t=>isLate(t,T)).length;
+  const tod =tasks.filter(t=>isToday(t,T)).length;
+  const doing=tasks.filter(t=>t.status==='doing').length;
+  const rate=tasks.length?Math.round(done/tasks.length*100):0;
+  const d=new Date(), wd=(d.getDay()+6)%7;
+  const todayCourse=courses.filter(c=>c.day===wd+1).length;
+  $('stats').innerHTML=
+    '<div class="card"><div class="v">'+tasks.length+'</div><div class="l">总任务</div></div>'+
+    '<div class="card"><div class="v">'+(tasks.length-done)+'</div><div class="l">未完成</div></div>'+
+    '<div class="card"><div class="v">'+doing+'</div><div class="l">进行中</div></div>'+
+    '<div class="card ok"><div class="v">'+done+'</div><div class="l">已完成</div></div>'+
+    '<div class="card late"><div class="v">'+late+'</div><div class="l">已逾期</div></div>'+
+    '<div class="card warn"><div class="v">'+tod+'</div><div class="l">今日到期</div></div>'+
+    '<div class="card ok"><div class="v">'+rate+'%</div><div class="l">完成率</div></div>'+
+    '<div class="card link" id="cCard"><div class="v">'+(courses.length?todayCourse:'—')+'</div><div class="l">'
+      +(courses.length?'今日课程（点开课表）':'未录入课表')+'</div></div>';
+  const cc=$('cCard'); if(cc) cc.onclick=()=>switchView('tt');
+}
+
+/* ---------------- 增删改 ---------------- */
+function addTask(o){
+  tasks.unshift(Object.assign({id:Date.now()+Math.random(),name:'新任务',cat:'其他',course:'',pri:'mid',due:'',status:'todo',prog:0,note:'',subs:[]},o));
+  save(); render();
+}
+function askDel(id){
+  const t=tasks.find(x=>x.id==id); if(!t) return;
+  const extra=(t.subs&&t.subs.length)?'（含 '+t.subs.length+' 条子任务）':'';
+  confirmBox('删除任务','「'+t.name+'」将被删除'+extra+'。',()=>{
+    const idx=tasks.indexOf(t);
+    tasks=tasks.filter(x=>x.id!=id); save(); render();
+    toast('已删除「'+t.name+'」','撤销',()=>{
+      tasks.splice(Math.min(idx,tasks.length),0,t); save(); render();
+    });
+  },'删除');
+}
+function toggleDone(id){
+  const t=tasks.find(x=>x.id==id); if(!t) return;
+  t.status = t.status==='done' ? 'doing' : 'done';
+  t.prog   = t.status==='done' ? 100 : (t.prog>=100?80:t.prog);
+  save(); render();
+}
+/* 有子任务时，进度由子任务完成情况决定 */
+function syncProg(t){
+  if(!t.subs||!t.subs.length) return;
+  const d=t.subs.filter(s=>s.done).length;
+  t.prog=Math.round(d/t.subs.length*100);
+  if(t.prog>=100) t.status='done';
+  else if(t.status==='done') t.status='doing';
+}
+
+/* ---------------- 弹窗 / 提示 ---------------- */
+let modalOnEsc=null;
+function openModal(html,wide){
+  const m=$('modal'), box=$('mbox');
+  box.className='mbox'+(wide?' wide':'');
+  box.innerHTML=html; m.classList.add('show');
+}
+function closeModal(){
+  if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
+  $('modal').classList.remove('show'); $('mbox').innerHTML=''; modalOnEsc=null;
+}
+$('modal').addEventListener('click',e=>{ if(e.target===$('modal')) closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('modal').classList.contains('show')) closeModal(); });
+
+function confirmBox(title,msg,onYes,yesText){
+  openModal('<h3>'+esc(title)+'</h3><div class="mmsg">'+esc(msg)+'</div>'
+    +'<div class="mrow"><button class="btn" id="mNo">取消</button>'
+    +'<button class="btn solid-danger" id="mYes">'+esc(yesText||'确定')+'</button></div>');
+  $('mNo').onclick=closeModal;
+  $('mYes').onclick=()=>{ closeModal(); onYes(); };
+  const n=$('mNo'); if(n) n.focus();
+}
+
+let toastTimer=null;
+function toast(msg,actLabel,actFn){
+  const box=$('toastbar');
+  box.innerHTML='<span>'+esc(msg)+'</span>'+(actLabel?'<button id="tbAct">'+esc(actLabel)+'</button>':'');
+  box.classList.add('show');
+  if(actFn) $('tbAct').onclick=()=>{ hideToast(); actFn(); };
+  clearTimeout(toastTimer); toastTimer=setTimeout(hideToast,7000);
+}
+function hideToast(){ $('toastbar').classList.remove('show'); }
+
+/* ---------------- 任务详情（备注 + 子任务） ---------------- */
+let detailId=null;
+function openDetail(id){
+  const t=tasks.find(x=>x.id==id); if(!t) return;
+  detailId=id; drawDetail();
+}
+function drawDetail(){
+  const t=tasks.find(x=>x.id==detailId); if(!t) return;
+  const subs=t.subs||[], sd=subs.filter(s=>s.done).length;
+  let h='<h3>任务详情</h3><div class="dgrid">'
+    +'<div class="full"><label>任务名称</label><input id="dName" value="'+esc(t.name)+'"></div>'
+    +'<div><label>分类</label><select id="dCat">'+CATS.map(c=>'<option '+(c===t.cat?'selected':'')+'>'+c+'</option>').join('')+'</select></div>'
+    +'<div><label>课程</label><select id="dCourse"><option value="">—</option>'
+      +courseNames().map(c=>'<option value="'+esc(c)+'" '+(c===(t.course||'')?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></div>'
+    +'<div><label>优先级</label><select id="dPri">'+Object.keys(PRI).map(k=>'<option value="'+k+'" '+(k===t.pri?'selected':'')+'>'+PRI[k]+'</option>').join('')+'</select></div>'
+    +'<div><label>状态</label><select id="dSt">'+Object.keys(ST).map(k=>'<option value="'+k+'" '+(k===t.status?'selected':'')+'>'+ST[k]+'</option>').join('')+'</select></div>'
+    +'<div><label>截止日期</label><input type="date" id="dDue" value="'+esc(t.due)+'"></div>'
+    +'<div><label>进度（%）</label><input type="number" id="dProg" min="0" max="100" value="'+(t.prog||0)+'"></div>'
+    +'<div class="full"><label>备注（可以写多行）</label><textarea id="dNote" rows="5" placeholder="要求、步骤、参考资料、卡在哪…">'+esc(t.note||'')+'</textarea></div>'
+    +'</div>';
+
+  h+='<div style="margin-top:14px"><label class="fl">子任务（'+sd+'/'+subs.length+'）'
+    +(subs.length?'<span class="hint" style="display:inline;margin-left:6px">勾选后自动更新进度</span>':'')+'</label>';
+  h+='<div class="subs">';
+  if(!subs.length) h+='<div class="hint" style="padding:6px 2px">还没有子任务。任务拆开写，比在备注里挤一行好找。</div>';
+  subs.forEach(s=>{
+    h+='<div class="sub"><input type="checkbox" class="ck" data-sub="'+s.id+'" '+(s.done?'checked':'')+'>'
+      +'<input class="si'+(s.done?' dn':'')+'" data-subt="'+s.id+'" value="'+esc(s.text)+'">'
+      +'<button class="xbtn" data-subdel="'+s.id+'">✕</button></div>';
+  });
+  h+='</div><div class="sub-new"><input id="dNewSub" placeholder="添加子任务，回车确认"><button class="btn sm primary" id="dAddSub">＋</button></div></div>';
+
+  h+='<div class="mrow"><button class="btn danger" id="dDel">删除任务</button>'
+    +'<button class="btn primary" id="dClose">关闭</button></div>';
+  openModal(h,true);
+
+  const upd=(fn)=>{ fn(t); save(); render(); };
+  $('dName').onchange =e=>{ t.name=e.target.value.trim()||t.name; save(); render(); };
+  $('dCat').onchange  =e=>upd(x=>x.cat=e.target.value);
+  $('dCourse').onchange=e=>upd(x=>x.course=e.target.value);
+  $('dPri').onchange  =e=>upd(x=>x.pri=e.target.value);
+  $('dSt').onchange   =e=>upd(x=>{ x.status=e.target.value; if(e.target.value==='done') x.prog=100; else if(x.prog>=100) x.prog=80; });
+  $('dDue').onchange  =e=>upd(x=>x.due=e.target.value);
+  $('dProg').onchange =e=>upd(x=>{ x.prog=Math.max(0,Math.min(100,parseInt(e.target.value)||0));
+                                   if(x.prog>=100) x.status='done'; else if(x.status==='done') x.status='doing'; });
+  $('dNote').onblur   =e=>{ t.note=e.target.value; save(); render(); };
+  $('dClose').onclick =closeModal;
+  $('dDel').onclick   =()=>{ closeModal(); askDel(t.id); };
+
+  $('mbox').querySelectorAll('[data-sub]').forEach(el=>el.onchange=()=>{
+    const s=subs.find(x=>x.id==el.dataset.sub); if(s) s.done=el.checked;
+    syncProg(t); save(); render(); drawDetail();
+  });
+  $('mbox').querySelectorAll('[data-subt]').forEach(el=>el.onblur=()=>{
+    const s=subs.find(x=>x.id==el.dataset.subt); if(s) s.text=el.value.trim();
+    save(); render();
+  });
+  $('mbox').querySelectorAll('[data-subdel]').forEach(el=>el.onclick=()=>{
+    t.subs=t.subs.filter(x=>x.id!=el.dataset.subdel);
+    if(t.subs.length) syncProg(t); save(); render(); drawDetail();
+  });
+  const addSub=()=>{
+    const v=$('dNewSub').value.trim(); if(!v) return;
+    t.subs.push({id:Date.now()+Math.random(),text:v,done:false});
+    syncProg(t); save(); render(); drawDetail();
+    const n=$('dNewSub'); if(n) n.focus();
+  };
+  $('dAddSub').onclick=addSub;
+  $('dNewSub').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); addSub(); } };
+}
+
+/* ---------------- 课表 ---------------- */
+function courseHue(name){ let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))%360; return h; }
+function renderTT(){
+  const [w0,w6]=weekRange();
+  $('ttRange').textContent=w0.slice(5)+' ~ '+w6.slice(5);
+  const wd=(new Date().getDay()+6)%7+1;              // 今天星期几（1=周一）
+  const w0d=new Date(w0+'T00:00:00');
+  let h='<div class="tt">';
+  h+='<div class="ttc th"></div>';
+  DAYN.forEach(d=>{
+    const dd=new Date(w0d); dd.setDate(dd.getDate()+(d.i-1));
+    h+='<div class="ttc th'+(d.i===wd?' today':'')+'">周'+d.n+'<span class="dt">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</span></div>';
+  });
+  for(let s=1;s<=SEC_MAX;s++){
+    h+='<div class="ttc sec">'+s+'</div>';
+    for(let d=1;d<=7;d++)
+      h+='<div class="ttc slot'+(d===wd?' today-col':'')+'" data-add="'+d+'_'+s+'"></div>';
+  }
+  courses.forEach(c=>{
+    const hue=courseHue(c.name||'');
+    h+='<div class="blk" data-cid="'+c.id+'" style="grid-column:'+(c.day+1)+';grid-row:'+(c.s+1)+'/span '+(c.e-c.s+1)
+      +';border-left-color:hsl('+hue+',62%,55%);background:hsl('+hue+',70%,95%)">'
+      +'<span class="nm2">'+esc(c.name)+'</span>'
+      +'<span class="pl">'+esc(c.place||'')+(c.teacher?' · '+esc(c.teacher):'')+'</span></div>';
+  });
+  h+='</div>';
+  if(!courses.length) h+='<div class="tt-empty">还没有课程。点上面「＋ 添加课程」，或「📋 粘贴课表」一次性导入。</div>';
+  $('ttGrid').innerHTML=h;
+
+  $('ttGrid').querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>{
+    const p=el.dataset.add.split('_');
+    openCourse(null,{day:+p[0],s:+p[1],e:+p[1]});
+  });
+  $('ttGrid').querySelectorAll('[data-cid]').forEach(el=>el.onclick=()=>openCourse(el.dataset.cid,null));
+}
+
+function openCourse(id,init){
+  const c=id?courses.find(x=>x.id==id):Object.assign({id:Date.now()+Math.random(),name:'',place:'',teacher:'',day:1,s:1,e:2},init||{});
+  const h='<h3>'+(id?'编辑课程':'添加课程')+'</h3><div class="dgrid">'
+    +'<div class="full"><label>课程名称</label><input id="cName" value="'+esc(c.name)+'" placeholder="如：高等数学"></div>'
+    +'<div><label>星期</label><select id="cDay">'+DAYN.map(d=>'<option value="'+d.i+'" '+(d.i===c.day?'selected':'')+'>周'+d.n+'</option>').join('')+'</select></div>'
+    +'<div><label>节次（第几节到第几节）</label><div style="display:flex;gap:6px;align-items:center">'
+      +'<input type="number" id="cS" min="1" max="'+SEC_MAX+'" value="'+c.s+'"><span style="color:#8b93a7">—</span>'
+      +'<input type="number" id="cE" min="1" max="'+SEC_MAX+'" value="'+c.e+'"></div></div>'
+    +'<div><label>地点</label><input id="cPlace" value="'+esc(c.place||'')+'" placeholder="教三301"></div>'
+    +'<div><label>老师（可选）</label><input id="cTea" value="'+esc(c.teacher||'')+'" placeholder="张老师"></div>'
+    +'</div><div class="mrow">'
+    +(id?'<button class="btn danger" id="cDel">删除课程</button>':'')
+    +'<button class="btn" id="cNo">取消</button><button class="btn primary" id="cYes">保存</button></div>';
+  openModal(h);
+  $('cNo').onclick=closeModal;
+  if(id) $('cDel').onclick=()=>{
+    closeModal();
+    confirmBox('删除课程','「'+c.name+'」将从课表移除（任务里的课程名不受影响）。',()=>{
+      courses=courses.filter(x=>x.id!=c.id); save(); renderTT(); refreshCourseSelects(); render();
+      toast('已删除课程「'+c.name+'」');
+    },'删除');
+  };
+  $('cYes').onclick=()=>{
+    const name=$('cName').value.trim();
+    if(!name){ $('cName').focus(); return; }
+    let s=Math.max(1,Math.min(SEC_MAX,parseInt($('cS').value)||1));
+    let e=Math.max(1,Math.min(SEC_MAX,parseInt($('cE').value)||s));
+    if(e<s) { const t=s; s=e; e=t; }
+    Object.assign(c,{name,day:+$('cDay').value,s,e,place:$('cPlace').value.trim(),teacher:$('cTea').value.trim()});
+    if(!id) courses.push(c);
+    courses.sort((a,b)=>a.day-b.day||a.s-b.s);
+    save(); closeModal(); renderTT(); refreshCourseSelects(); render();
+  };
+}
+
+/* 课表文本解析：识别星期 + 节次，其余当 名称/地点/老师 */
+function parseCourses(text){
+  const out=[];
+  (text||'').split(/\r?\n/).forEach(line=>{
+    const L=line.trim(); if(!L) return;
+    let day=null;
+    const dm=L.match(/(?:周|星期)\s*([一二三四五六日天1-7])/);
+    if(dm) day={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':7,'天':7,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7}[dm[1]];
+    let s=null,e=null;
+    const rm=L.match(/(\d{1,2})\s*[-~－—~至,，]\s*(\d{1,2})\s*节?/);
+    if(rm){ s=+rm[1]; e=+rm[2]; }
+    else { const sm=L.match(/(\d{1,2})\s*节/); if(sm){ s=+sm[1]; e=s; } }
+    if(day==null||s==null) return;
+    let rest=L.replace(dm[0],' ').replace(rm?rm[0]:(L.match(/(\d{1,2})\s*节/)||[''])[0],' ');
+    const tk=rest.split(/[\s\t、]+/).filter(x=>x&&!/^(节|第)$/.test(x));
+    if(!tk.length) return;
+    const name=tk[0];
+    let place='',tea='';
+    tk.slice(1).forEach(x=>{
+      if(!tea&&/(老师|教授|讲师|助教)$/.test(x)) tea=x;
+      else if(!place&&/(教|楼|馆|场|室|中心|机房|实验室|\d{3,4})/.test(x)) place=x;
+      else if(!tea&&!place) place=x;
+    });
+    out.push({id:Date.now()+Math.random(),name,day,s,e:Math.max(e,s),place,teacher:tea});
+  });
+  return out;
+}
+let ttDraft=[];
+function renderTTPreview(){
+  const box=$('ttPreview');
+  if(!ttDraft.length){ box.innerHTML=''; return; }
+  box.innerHTML='<div class="hint" style="margin-bottom:6px">解析到 '+ttDraft.length+' 门课，可直接改，确认后加入课表：</div>'
+    +'<div style="overflow-x:auto"><table style="min-width:520px;width:100%;border-collapse:collapse;font-size:13px">'
+    +'<tr style="background:#f3f6fb"><th style="padding:6px;text-align:left;border:1px solid #e8ecf3">星期</th>'
+    +'<th style="padding:6px;border:1px solid #e8ecf3">节次</th><th style="padding:6px;border:1px solid #e8ecf3">课程</th>'
+    +'<th style="padding:6px;border:1px solid #e8ecf3">地点</th><th style="padding:6px;border:1px solid #e8ecf3">老师</th>'
+    +'<th style="padding:6px;border:1px solid #e8ecf3"></th></tr>'
+    +ttDraft.map((c,i)=>'<tr>'
+      +'<td style="padding:4px;border:1px solid #eef1f6"><select data-pf="day" data-i="'+i+'">'
+        +DAYN.map(d=>'<option value="'+d.i+'" '+(d.i===c.day?'selected':'')+'>周'+d.n+'</option>').join('')+'</select></td>'
+      +'<td style="padding:4px;border:1px solid #eef1f6"><input data-pf="s" data-i="'+i+'" type="number" value="'+c.s+'" style="width:38px">'
+        +'-<input data-pf="e" data-i="'+i+'" type="number" value="'+c.e+'" style="width:38px"></td>'
+      +'<td style="padding:4px;border:1px solid #eef1f6"><input data-pf="name" data-i="'+i+'" value="'+esc(c.name)+'" style="width:120px"></td>'
+      +'<td style="padding:4px;border:1px solid #eef1f6"><input data-pf="place" data-i="'+i+'" value="'+esc(c.place)+'" style="width:88px"></td>'
+      +'<td style="padding:4px;border:1px solid #eef1f6"><input data-pf="teacher" data-i="'+i+'" value="'+esc(c.teacher)+'" style="width:66px"></td>'
+      +'<td style="padding:4px;border:1px solid #eef1f6"><button class="xbtn" data-prm="'+i+'">✕</button></td></tr>').join('')
+    +'</table></div>'
+    +'<div style="margin-top:8px;display:flex;gap:8px"><button class="btn primary sm" id="ttOk">加入课表（'+ttDraft.length+'）</button>'
+    +'<span class="hint" style="align-self:center">重复课程会被覆盖</span></div>';
+  box.querySelectorAll('[data-pf]').forEach(el=>el.onchange=()=>{
+    const i=+el.dataset.i, f=el.dataset.pf;
+    ttDraft[i][f]=(f==='day'||f==='s'||f==='e')?(+el.value||1):el.value;
+  });
+  box.querySelectorAll('[data-prm]').forEach(el=>el.onclick=()=>{
+    ttDraft.splice(+el.dataset.prm,1); renderTTPreview();
+  });
+  $('ttOk').onclick=()=>{
+    ttDraft.forEach(c=>{
+      if(!c.name.trim()) return;
+      courses=courses.filter(x=>!(x.day===c.day&&x.name===c.name.trim()));
+      courses.push(c);
+    });
+    courses.sort((a,b)=>a.day-b.day||a.s-b.s);
+    ttDraft=[]; $('ttText').value=''; box.innerHTML='';
+    save(); renderTT(); refreshCourseSelects(); render();
+    toast('课表已更新，共 '+courses.length+' 门课');
+  };
+}
+
+/* ---------------- 视图切换 ---------------- */
+function switchView(v){
+  ui.view=v; save();
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  $('v-task').style.display = v==='task'?'':'none';
+  $('v-tt').style.display   = v==='tt'?'':'none';
+  if(v==='tt') renderTT(); else render();
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchView(b.dataset.v));
+
+function refreshCourseSelects(){
+  const names=courseNames();
+  const optsAll='<option value="all">全部课程</option>'+names.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+  ['qCourse'].forEach(id=>{
+    const cur=$(id).value;
+    $(id).innerHTML='<option value="">不挂课程</option>'+names.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+    if(names.indexOf(cur)>=0) $(id).value=cur;
+  });
+  const fc=$('fCourse'), cur=fCourse;
+  fc.innerHTML=optsAll;
+  fc.value = (cur!=='all'&&names.indexOf(cur)>=0)?cur:'all';
+  fCourse=fc.value;
+}
+
+/* ---------------- 快速添加 ---------------- */
+const qName=$('qName');
+function fillCat(){
+  $('qCat').innerHTML=CATS.map(c=>'<option'+(c==='考研复习'?' selected':'')+'>'+c+'</option>').join('');
+}
+function quickAdd(){
+  const n=qName.value.trim(); if(!n){ qName.focus(); return; }
+  addTask({name:n,cat:$('qCat').value,course:$('qCourse').value,
+    pri:$('qPri').value,due:$('qDue').value});
+  qName.value=''; $('qDue').value=''; qName.focus();
+}
+$('qAdd').onclick=quickAdd;
+qName.onkeydown=e=>{ if(e.key==='Enter') quickAdd(); };
+
+/* ---------------- 筛选 / 排序 ---------------- */
+document.querySelectorAll('.chip[data-cat]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.chip[data-cat]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); fCat=b.dataset.cat; render();
+});
+document.querySelectorAll('.chip[data-st]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.chip[data-st]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); fSt=b.dataset.st; render();
+});
+document.querySelectorAll('.chip[data-tm]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.chip[data-tm]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); fTm=b.dataset.tm; render();
+});
+$('fCourse').onchange=e=>{ fCourse=e.target.value; render(); };
+$('search').oninput=e=>{ kw=e.target.value.trim(); render(); };
+
+document.querySelectorAll('th.sortable').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.sort;
+  if(sortKey===k) sortAsc=!sortAsc; else { sortKey=k; sortAsc=true; }
+  document.querySelectorAll('th .ar').forEach(s=>s.textContent='');
+  th.querySelector('.ar').textContent = sortAsc?'▲':'▼';
+  render();
+});
+
+/* ---------------- 课表工具 ---------------- */
+$('ttAdd').onclick=()=>openCourse(null,{day:1,s:1,e:2});
+$('ttPasteToggle').onclick=()=>{ const p=$('ttPaste'); p.style.display=p.style.display==='none'?'':'none'; };
+$('ttPasteClear').onclick=()=>{ $('ttText').value=''; ttDraft=[]; $('ttPreview').innerHTML=''; };
+$('ttParse').onclick=()=>{
+  ttDraft=parseCourses($('ttText').value);
+  if(!ttDraft.length){ $('ttPreview').innerHTML='<div class="hint" style="color:#db4a4f">没识别出课程。每行要能看出星期和节次，例如「周一 1-2 高等数学 教三301」。</div>'; return; }
+  renderTTPreview();
+};
+$('ttClear').onclick=()=>{
+  if(!courses.length){ toast('课表本来就是空的'); return; }
+  confirmBox('清空课表','将删除全部 '+courses.length+' 门课程（任务不受影响）。',()=>{
+    courses=[]; save(); renderTT(); refreshCourseSelects(); render(); toast('课表已清空');
+  },'清空');
+};
+
+/* ---------------- 导入导出 ---------------- */
+$('clrDone').onclick=()=>{
+  const n=tasks.filter(t=>t.status==='done').length;
+  if(!n){ toast('没有已完成的任务'); return; }
+  confirmBox('清除已完成','将删除 '+n+' 条已完成任务，删完可撤销。',()=>{
+    const bak=tasks.slice();
+    tasks=tasks.filter(t=>t.status!=='done'); save(); render();
+    toast('已清除 '+n+' 条已完成任务','撤销',()=>{ tasks=bak; save(); render(); });
+  },'清除');
+};
+function download(name,content,type){
+  const b=new Blob([content],{type:type||'application/json;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+}
+$('expJson').onclick=()=>{
+  download('任务表备份.json',JSON.stringify({app:'tasklist',v:2,tasks,courses},null,2));
+};
+$('impJson').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result);
+      if(Array.isArray(o)){                        // 旧版备份：只有任务
+        tasks=o; courses=courses||[];
+      }else if(o&&Array.isArray(o.tasks)){
+        tasks=o.tasks; courses=Array.isArray(o.courses)?o.courses:courses;
+      }else throw 0;
+      tasks.forEach(t=>{ if(!Array.isArray(t.subs)) t.subs=[]; if(t.course==null) t.course=''; });
+      save(); refreshCourseSelects(); renderTT(); render();
+      toast('导入成功：'+tasks.length+' 条任务 / '+courses.length+' 门课');
+    }catch(err){ toast('文件格式不对，需要本页导出的备份 JSON'); }
+  };
+  r.readAsText(f); e.target.value='';
+};
+$('expCsv').onclick=()=>{
+  const head=['任务名称','分类','课程','优先级','截止日期','状态','进度','备注','子任务'];
+  const rows=visible().map(t=>[t.name,t.cat,t.course||'',PRI[t.pri],t.due,ST[t.status],t.prog+'%',t.note||'',
+    (t.subs||[]).map(s=>(s.done?'[x] ':'[ ] ')+s.text).join(' / ')]);
+  const csv=[head].concat(rows).map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  download('任务表.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+};
+
+/* ---------------- 启动 ---------------- */
+fillCat();
+refreshCourseSelects();
+document.querySelector('th.sortable[data-sort="due"] .ar').textContent='▲';
+renderTT();
+switchView(ui.view==='tt'?'tt':'task');
+</script>
+</body>
+</html>
