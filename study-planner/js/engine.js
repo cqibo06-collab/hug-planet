@@ -152,27 +152,54 @@ PB.engine = (() => {
     }
     const usage = capH > 0 ? totalReq / capH : 9;
     let verdict, verdictCN, verdictMsg;
-    if (usage > 1) { verdict = 'over'; verdictCN = '时间超载'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，但课表外每周只有约 ${capH.toFixed(1)} 小时，缺口 ${(totalReq - capH).toFixed(1)} 小时。`; }
-    else if (usage > 0.85) { verdict = 'warn'; verdictCN = '非常紧张'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，可用约 ${capH.toFixed(1)} 小时/周，占用 ${Math.round(usage * 100)}%，几乎没有缓冲。`; }
-    else if (usage > 0.5) { verdict = 'warn'; verdictCN = '可行但紧凑'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，可用约 ${capH.toFixed(1)} 小时/周，占用 ${Math.round(usage * 100)}%，安排得当可以完成。`; }
-    else { verdict = 'ok'; verdictCN = '时间充裕'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，可用约 ${capH.toFixed(1)} 小时/周，仅占用 ${Math.round(usage * 100)}%，还有余量。`; }
+    const suggestions = [];
+    const activeCount = perGoal.filter(p => !['done', 'overdue'].includes(p.status)).length;
+    if (!s.goals.length || !activeCount) {
+      verdict = 'empty'; verdictCN = '信息不足';
+      verdictMsg = s.goals.length
+        ? '现有目标都已完成或未填工时，暂时算不出时间账。添加新目标并填写预计工时后，这里会给出结论。'
+        : '还没有目标，先不下结论。到「目标·任务」添加目标（或用一句话让 AI 拆解），再回来看这份时间账。';
+      suggestions.push('在「目标·任务」添加目标：填上截止日和预计工时（可用数量×速率估算）');
+      suggestions.push('到「课表」核对课程时间，它决定你每天还剩多少可支配时间');
+      suggestions.push('完成后回到本页：会给出可行性结论、风险清单和每周建议');
+    } else if (cap.studyTotal <= 0) {
+      verdict = 'nocap'; verdictCN = '没有可用时间';
+      verdictMsg = '按当前课表与设置，每周可投入为 0。请检查「设置」里的每日学习上限与规划窗口，或课表是否占满了全部时间。';
+      suggestions.push('到「设置」调大每日学习上限或规划窗口');
+      suggestions.push('核对课表里是否有误导入的长时间占用');
+    } else if (usage > 1) {
+      verdict = 'over'; verdictCN = '时间超载'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，但课表外每周只有约 ${capH.toFixed(1)} 小时，缺口 ${(totalReq - capH).toFixed(1)} 小时。`;
+    } else if (usage > 0.85) {
+      verdict = 'warn'; verdictCN = '非常紧张'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，可用约 ${capH.toFixed(1)} 小时/周，占用 ${Math.round(usage * 100)}%，几乎没有缓冲。`;
+    } else if (usage > 0.5) {
+      verdict = 'warn'; verdictCN = '可行但紧凑'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，可用约 ${capH.toFixed(1)} 小时/周，占用 ${Math.round(usage * 100)}%，安排得当可以完成。`;
+    } else {
+      verdict = 'ok'; verdictCN = '时间充裕'; verdictMsg = `目标共需 ${totalReq.toFixed(1)} 小时/周，可用约 ${capH.toFixed(1)} 小时/周，仅占用 ${Math.round(usage * 100)}%，还有余量。`;
+    }
 
     // 自动建议（模板，无需 LLM）
-    const suggestions = [];
-    if (verdict === 'over') {
-      const low = perGoal.filter(p => ['ok', 'tight'].includes(p.status) && p.goal.priority === 'low');
-      if (low.length) suggestions.push(`低优先级目标（${low.map(p => `《${p.goal.title}》`).join('、')}）可延后到超载目标完成后再启动`);
-      suggestions.push('压缩非核心目标的预计工时，或申请延长截止期');
-      suggestions.push('把背诵、整理错题等轻任务放进碎片时间，整块时间留给难点');
-    } else if (verdict === 'warn') {
-      suggestions.push('周中至少留半个下午作为机动缓冲，应对突发任务');
-      suggestions.push('优先保证临期与高优先级目标，其余按截止日顺序推进');
-    } else {
-      suggestions.push('余量充足，可以加入预习、刷题拓展等提升型任务');
-      suggestions.push('建议把剩余时间的 20% 用于复盘和错题回顾');
+    if (verdict !== 'empty' && verdict !== 'nocap') {
+      if (verdict === 'over') {
+        const low = perGoal.filter(p => ['ok', 'tight'].includes(p.status) && p.goal.priority === 'low');
+        if (low.length) suggestions.push(`低优先级目标（${low.map(p => `《${p.goal.title}》`).join('、')}）可延后到超载目标完成后再启动`);
+        suggestions.push('压缩非核心目标的预计工时，或申请延长截止期');
+        suggestions.push('把背诵、整理错题等轻任务放进碎片时间，整块时间留给难点');
+      } else if (verdict === 'warn') {
+        suggestions.push('周中至少留半个下午作为机动缓冲，应对突发任务');
+        suggestions.push('优先保证临期与高优先级目标，其余按截止日顺序推进');
+      } else {
+        suggestions.push('余量充足，可以加入预习、刷题拓展等提升型任务');
+        suggestions.push('建议把剩余时间的 20% 用于复盘和错题回顾');
+      }
+      if (perGoal.some(p => p.status === 'risk')) suggestions.push('存在 3 天内截止的目标，本周计划应向其倾斜');
+      if (cap.fragTotal > 180) suggestions.push(`每周碎片时间约 ${U.fmtHours(cap.fragTotal)}，适合用来背单词、过知识点卡片`);
+      // 实际耗时校准
+      const bias = (typeof PB.est !== 'undefined' && PB.est.estimateBias) ? PB.est.estimateBias() : { count: 0, ratio: 1 };
+      if (bias.count >= 2) {
+        if (bias.ratio >= 1.15) suggestions.push(`最近 ${bias.count} 个完成任务的实际耗时约为预估的 ${Math.round(bias.ratio * 100)}%——同类任务建议上调预估`);
+        else if (bias.ratio <= 0.85) suggestions.push(`最近 ${bias.count} 个完成任务的实际耗时只有预估的 ${Math.round(bias.ratio * 100)}%——可适当调低预估，让计划更贴近实际`);
+      }
     }
-    if (perGoal.some(p => p.status === 'risk')) suggestions.push('存在 3 天内截止的目标，本周计划应向其倾斜');
-    if (cap.fragTotal > 180) suggestions.push(`每周碎片时间约 ${U.fmtHours(cap.fragTotal)}，适合用来背单词、过知识点卡片`);
 
     const risks = [];
     for (const p of perGoal) {
@@ -182,11 +209,19 @@ PB.engine = (() => {
     }
     for (const c of findConflicts(s).filter(x => x.level === 'warn')) risks.push(c.msg);
 
-    return { capH, cap, stats, perGoal, totalReq, totalRemain, usage, verdict, verdictCN, verdictMsg, suggestions, risks };
+    const capExplain = {
+      rawFreeH: Math.round(cap.total / 60 * 10) / 10,
+      chunkH: Math.round(cap.chunkTotal / 60 * 10) / 10,
+      fragH: Math.round(cap.fragTotal / 60 * 10) / 10,
+      capPerDay: s.settings.dailyCapH,
+      studyH: Math.round(cap.studyTotal / 60 * 10) / 10,
+    };
+    return { capH, cap, capExplain, stats, perGoal, totalReq, totalRemain, usage, verdict, verdictCN, verdictMsg, suggestions, risks };
   }
 
-  /* ── 周计划生成（贪心 + 截止日倒排 + 精力匹配） ── */
-  function generatePlan(mondayStr, st) {
+  /* ── 周计划生成（贪心 + 截止日倒排 + 精力匹配）
+   * preserve=true 时保留本周已完成/锁定的块，只重排剩余工时 ── */
+  function generatePlan(mondayStr, st, preserve) {
     const s = st || PB.store.get();
     const todayStr = U.dateStr(U.today());
     const capDays = s.settings.dailyCapH * 60;
@@ -195,19 +230,35 @@ PB.engine = (() => {
     const goalM = goalMap(s);
     const weekEnd = U.dateStr(U.addDays(U.parseDate(mondayStr), 6));
 
+    // 保留已完成/锁定块，并从剩余工时里扣掉对应时长
+    const preserved = [];
+    const preservedMin = { task: {}, goal: {} };
+    if (preserve && s.plan && Array.isArray(s.plan.items)) {
+      for (const it of s.plan.items) {
+        if ((it.done || it.locked) && it.date >= mondayStr && it.date <= weekEnd) {
+          preserved.push({ ...it });
+          const k = it.taskId ? 'task' : 'goal';
+          const id = it.taskId || it.goalId;
+          preservedMin[k][id] = (preservedMin[k][id] || 0) + (it.end - it.start);
+        }
+      }
+    }
+
     // 待排任务：目标未完成 +（有任务则取任务，否则目标整体作为隐式任务）
     const worklist = [];
     for (const g of s.goals) {
       const tasks = s.tasks.filter(t => t.goalId === g.id);
       if (tasks.length) {
         for (const t of tasks) {
-          const rem = taskRemaining(t);
-          if (rem > 0.05) worklist.push({ kind: 'task', ref: t, goal: g, hours: rem, deadline: g.deadline || weekEnd, priority: t.priority || g.priority });
+          const rem = Math.max(0, taskRemaining(t) * 60 - (preservedMin.task[t.id] || 0)) / 60;
+          if (rem > 0.05) worklist.push({ kind: 'task', ref: t, goal: g, hours: rem, deadline: t.due || g.deadline || weekEnd, priority: t.priority || g.priority });
         }
       } else if ((g.estHours || 0) > 0.05 && g.deadline !== undefined) {
         const dl = g.deadline;
         if (dl && U.dayDiff(dl, todayStr) < 0) continue; // 已过期不排
-        worklist.push({ kind: 'goal', ref: g, goal: g, hours: g.estHours, deadline: dl || weekEnd, priority: g.priority });
+        const grem = Math.max(0, (g.estHours || 0) * 60 - (preservedMin.goal[g.id] || 0)) / 60;
+        if (grem <= 0.05) continue;
+        worklist.push({ kind: 'goal', ref: g, goal: g, hours: grem, deadline: dl || weekEnd, priority: g.priority });
       }
     }
     // 排序：截止日近者优先，其次优先级，再按剩余工时大者优先
@@ -266,7 +317,9 @@ PB.engine = (() => {
           if (capLeft < minBlock) break;
           let len = iv.e - iv.s;
           const take = Math.min(remaining, len, capLeft);
-          if (take < minBlock) continue;
+          // 收尾阶段（剩余≤30分钟）允许 15 分钟小块，避免为一点尾巴报"排不下"
+          const minB = remaining <= 30 ? 15 : minBlock;
+          if (take < minB) continue;
           // 决定块长：尽量占满槽位或剩余需求，但单块不超过 3 小时
           let block = Math.min(take, 180);
           // 若剩余很少且槽位还长，保留槽位余量给别人
@@ -282,8 +335,8 @@ PB.engine = (() => {
       if (remaining > 0.5) unallocated.push({ workKind: w.kind, ref: w.ref, goal: w.goal, hours: remaining / 60, deadline: w.deadline });
     }
 
-    // 输出（合并进 plan.items，替换同周内容）
-    const items = [];
+    // 输出（保留块 + 新排块）
+    const items = preserved.slice();
     for (const day of days) {
       for (const a of day.alloc) {
         items.push({ id: PB.store.uid(), taskId: a.taskId, goalId: a.goalId, date: a.date, start: a.start, end: a.end, done: false });
@@ -294,7 +347,7 @@ PB.engine = (() => {
       const name = u.workKind === 'task' ? u.ref.title : `《${u.goal.title}》(整体推进)`;
       warnings.push(`「${name}」还有约 ${U.fmtHours(u.hours * 60)} 排不进本周（截止 ${u.deadline}），建议减量、延期或提高每日上限`);
     }
-    return { weekOf: mondayStr, items, warnings, unallocated };
+    return { weekOf: mondayStr, items, warnings, unallocated, preservedCount: preserved.length };
   }
 
   // 已排工时（某周）
