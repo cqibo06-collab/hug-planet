@@ -446,6 +446,7 @@ details.raw pre{background:#f7f9fc;border:1px solid var(--line);border-radius:8p
       <div class="stat"><b id="s4">0</b><span>今日已练</span></div>
     </div>
 
+    <div id="resumeSlot"></div>
     <div class="card pad mt2">
       <div class="between"><h3>选择题库开始练习</h3><span id="homeBankSort"></span></div>
       <div id="homeBanks" class="bank-list mt"></div>
@@ -3422,6 +3423,22 @@ function renderHome(){
 
   drawHomePoints();
 
+  // 继续上次刷题：有未完成的进度时，在题库列表上方出一张卡
+  const rslot = $('#resumeSlot');
+  if(hasResume()){
+    const r = DB.resume;
+    const answered = Object.keys(r.answers||{}).length;
+    rslot.innerHTML = '<div class="card pad" style="border:1px solid #c9dcf7;background:var(--primary-soft)">'
+      + '<div class="between"><h3 style="margin:0">↩️ 上次刷到第 '+(r.idx+1)+' / '+r.list.length+' 题</h3>'
+      + '<span class="small muted">'+esc(r.title)+' · 已答 '+answered+' 题</span></div>'
+      + '<div class="row mt"><button class="btn primary" id="btnResumeGo">继续刷（不用从头开始）</button>'
+      + '<button class="btn sm ghost" id="btnResumeNo">删掉这份进度</button></div></div>';
+    $('#btnResumeGo').onclick = resumeSession;
+    $('#btnResumeNo').onclick = () => confirmBox('删除进度', '这份未完成的刷题记录会被清掉，下次只能从头开始。', () => {
+      clearResume(); renderHome(); toast('已删除');
+    });
+  } else rslot.innerHTML = '';
+
   const box = $('#homeBanks');
   box.innerHTML = DB.banks.length ? sortedBanks().map(b => {
     const cnt = {};
@@ -4815,6 +4832,34 @@ function startSession(opt){
   startTimer();
   renderQ();
   renderSheet();
+  saveResume();
+}
+
+/* ---------- 进度自动保存：刷到哪、答了什么都在，退出后首页可一键继续 ---------- */
+function saveResume(){
+  if(!S) return;
+  DB.resume = { title:S.title, mode:S.mode, list:S.list, idx:S.idx,
+    answers:S.answers, locked:S.locked, results:S.results, conf:S.conf,
+    marks:S.marks, favs:S.favs, fromWrong:S.fromWrong, startAt:S.startAt, limit:S.limit };
+  save();
+}
+function clearResume(){ if(DB.resume){ delete DB.resume; save(); } }
+function hasResume(){
+  const r = DB.resume;
+  return !!(r && r.list && r.list.length &&
+    (r.idx > 0 || Object.keys(r.answers || {}).length));
+}
+function resumeSession(){
+  const r = DB.resume; if(!r){ toast('没有可恢复的进度'); return; }
+  S = { title:r.title, mode:r.mode, list:r.list, idx:r.idx,
+    answers:r.answers||{}, locked:r.locked||{}, results:r.results||{}, conf:r.conf||{},
+    marks:r.marks||{}, favs:r.favs||{}, fromWrong:!!r.fromWrong,
+    startAt:r.startAt||Date.now(), limit:r.limit||0 };
+  go('quiz');
+  $('#qTitle').textContent = S.title;
+  startTimer();
+  renderQ();
+  renderSheet();
 }
 
 function startTimer(){
@@ -5070,6 +5115,7 @@ function markSheet(){
   const done = S.list.filter(x => (S.answers[x.id]||[]).length || S.locked[x.id]).length;
   $('#sheetInfo').textContent = '已答 ' + done + '/' + S.list.length;
   $('#qBar').style.width = (done / S.list.length * 100) + '%';
+  saveResume();   // 答题/切题/标记都会走到这里，进度随手落库
 }
 
 function renderSheet(){
@@ -5127,6 +5173,7 @@ function doSubmit(){
     total, right: rightN, half: halfN, wrong: wrongN, pending: pendN, un: unN,
     score, sec, wrongIds: S.list.filter(q => ['wrong','half'].includes((S.results[q.id]||{}).state)).map(q=>q.id)
   });
+  delete DB.resume;   // 已经交卷，未完成进度不再保留
   save();
   renderResult({ total, rightN, halfN, wrongN, pendN, unN, essayN, score, sec });
   go('result');
@@ -5957,7 +6004,7 @@ function previewListModal(list, title){
 
 /* ---------- 答题页按钮 ---------- */
 $('#qExit').onclick = () => {
-  confirmBox('退出练习', '当前进度不会保存，确定退出？', () => { clearInterval(TICK); S = null; go('home'); });
+  confirmBox('退出练习', '进度已自动保存，回到首页可以「继续刷」。确定退出？', () => { clearInterval(TICK); S = null; go('home'); });
 };
 $('#qSubmit').onclick = submit;
 $('#qPrev').onclick = () => move(-1);
