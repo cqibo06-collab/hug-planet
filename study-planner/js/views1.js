@@ -114,21 +114,175 @@ PB.views = PB.views || {};
     root.appendChild(wrap);
   }
 
-  /* ── 总览页 ─────────────────────────────────── */
+  /* ── 共享：AI 配置引导 ─────────────────────── */
+  function aiGuideModal() {
+    UI.openModal({
+      title: 'AI 功能需要先配置接口',
+      bodyHTML: `
+        <p>AI 只负责三件事：<b>理解你的描述拆目标、写深度建议、对话式调整计划</b>。时间账、冲突检测、计划生成全部是本地规则，没有 AI 也完整可用。</p>
+        <div class="divider"></div>
+        <p class="muted small">配置方法：到「设置」填 OpenAI 兼容接口的地址、Key 和模型（DeepSeek / 智谱等都行）。Key 只存本机浏览器。</p>`,
+      footer: [
+        { label: '手动添加就行' },
+        { label: '去配置', cls: 'primary', onClick: (close) => { close(); PB.app.nav('settings'); } },
+      ],
+    });
+  }
+
+  /* ── 共享：时间账推演说明 ──────────────────── */
+  function capExplainHTML(f) {
+    const e = f.capExplain;
+    return `计算过程：课表与三餐之外的空闲 <b>${e.rawFreeH}h</b>（整块 ${e.chunkH}h + 碎片 ${e.fragH}h）→ 受「每天学习上限 ${e.capPerDay}h」约束 → 每周可投入 <b>${e.studyH}h</b>。上限可在「设置」调整，建议留出缓冲。`;
+  }
+
+  /* ── 共享：导出备份 ────────────────────────── */
+  function exportBackup() {
+    PB.store.markBackup();
+    const blob = new Blob([JSON.stringify(PB.store.get(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `shiguang-backup-${U.dateStr(U.today()).replaceAll('-', '')}.json`;
+    a.click();
+    UI.toast('备份已导出', 'ok');
+  }
+
+  /* ── 共享：完成学习块（记录实际耗时） ──────── */
+  function completeBlockFlow(item, onDone) {
+    const s = PB.store.get();
+    const t = s.tasks.find(x => x.id === item.taskId);
+    const g = s.goals.find(x => x.id === item.goalId);
+    const h = (item.end - item.start) / 60;
+    const started = item.startedAt ? (Date.now() - item.startedAt) / 3600000 : null;
+    const defH = started ? Math.max(0.1, Math.round(started * 10) / 10) : h;
+    UI.openModal({
+      title: '完成学习块',
+      bodyHTML: `
+        <p style="font-size:14.5px"><b>${U.esc(t ? t.title : '推进《' + (g ? g.title : '?') + '》')}</b></p>
+        <p class="muted small">${U.fmtCN(item.date)} ${U.hmStr(item.start)}~${U.hmStr(item.end)}（计划 ${h.toFixed(1)}h）${t ? ` · 任务进度：已投入 ${(t.doneHours || 0).toFixed(1)}/${(t.estHours || 0).toFixed(1)}h` : ''}</p>
+        ${started ? `<p class="small">从开始到现在约 <b>${defH.toFixed(1)}h</b>，已自动填入。</p>` : ''}
+        <div class="field" style="margin-top:8px"><label>实际用时（小时）——会用于校准你的估算节奏</label><input id="fActual" type="number" min="0" step="0.1" value="${defH}"></div>`,
+      footer: [
+        { label: '取消' },
+        { label: '✓ 标记完成', cls: 'primary', onClick: (close) => {
+          const a = Math.max(0, +UI.fv(document, '#fActual') || 0);
+          const st = PB.store.get();
+          const tt = st.tasks.find(x => x.id === item.taskId);
+          const it = st.plan.items.find(x => x.id === item.id);
+          if (it) {
+            if (!it.done && tt) tt.doneHours = (tt.doneHours || 0) + h;
+            if (tt && a > 0) tt.actualHours = (tt.actualHours || 0) + a;
+            it.done = true; it.actualHours = a; delete it.startedAt;
+            PB.store.save();
+            UI.toast(`已完成，记录实际 ${a.toFixed(1)}h${tt ? '（任务已投 ' + tt.actualHours.toFixed(1) + 'h）' : ''}`, 'ok');
+          }
+          close(); if (onDone) onDone();
+        } },
+      ],
+    });
+  }
+
+  /* ── 共享：延期单个学习块 ──────────────────── */
+  function deferBlockFlow(item, onDone) {
+    const tomorrow = U.dateStr(U.addDays(U.today(), 1));
+    UI.openModal({
+      title: '顺延这个学习块',
+      bodyHTML: `
+        <p class="muted small" style="margin-bottom:8px">保持时长 ${(item.end - item.start) / 60}h，自动放到目标日第一个放得下的空闲时段。</p>
+        <div class="field"><label>顺延到</label><input id="fDate" type="date" value="${tomorrow}"></div>
+        <div id="deferHint" class="muted small"></div>`,
+      footer: [
+        { label: '取消' },
+        { label: '顺延', cls: 'primary', onClick: (close) => {
+          const nd = UI.fv(document, '#fDate');
+          if (!nd) { UI.toast('请选日期', 'err'); return; }
+          const st = PB.store.get();
+          const it = st.plan.items.find(x => x.id === item.id);
+          if (!it) { close(); return; }
+          const dur = it.end - it.start;
+          // 目标日空闲：扣除课程/事件/三餐 + 已排块
+          const lay = PB.engine.dayLayout(nd);
+          const busyPlan = st.plan.items.filter(x => x.date === nd && !x.done && x.id !== it.id).map(x => ({ s: x.start, e: x.end }));
+          const free = U.subtract(lay.free, busyPlan);
+          let start = null;
+          const same = free.find(iv => it.start >= iv.s && it.start + dur <= iv.e);
+          if (same) start = it.start;
+          else {
+            const fit = free.find(iv => iv.e - iv.s >= dur);
+            if (!fit) {
+              UI.confirmBox(`${U.fmtCN(nd)} 找不到 ${dur} 分钟的连续空闲。仍要挪过去（允许与已排块相邻挤压）吗？`, () => {
+                it.date = nd; delete it.startedAt;
+                PB.store.save(); UI.toast('已顺延（未自动找位）', 'ok'); if (onDone) onDone();
+              }, { danger: false, okLabel: '仍要顺延' });
+              return;
+            }
+            start = fit.s;
+          }
+          it.date = nd; it.start = start; it.end = start + dur; delete it.startedAt;
+          PB.store.save();
+          UI.toast(`已顺延到 ${U.fmtCN(nd)} ${U.hmStr(start)}`, 'ok');
+          close(); if (onDone) onDone();
+        } },
+      ],
+    });
+  }
+
+  /* ── 共享：重新安排本周（保留已完成/锁定块，带预览） ── */
+  function replanWeekPreview(onDone) {
+    const s = PB.store.get();
+    const monday = U.dateStr(U.mondayOf(U.today()));
+    const r = PB.engine.generatePlan(monday, null, true); // 试算，不落库
+    const cur = s.plan.weekOf === monday ? s.plan.items : [];
+    const kept = cur.filter(i => i.done || i.locked);
+    const keptH = kept.reduce((a, i) => a + i.end - i.start, 0);
+    const keptDone = kept.filter(i => i.done).length;
+    const keptLock = kept.length - keptDone;
+    UI.openModal({
+      title: '重新安排本周计划',
+      bodyHTML: `
+        <p class="small">调整方式：<b>已完成 ${keptDone} 块 + 已锁定 ${keptLock} 块</b>（共 ${U.fmtHours(keptH)}）原样保留；其余任务的剩余工时重新排入空闲时间。</p>
+        <div class="divider"></div>
+        <div class="small"><b>新安排：</b>${r.items.length - r.preservedCount} 个学习块（共 ${U.fmtHours((r.items.length - r.preservedCount) > 0 ? r.items.filter(i => !(i.done || i.locked)).reduce((a, i) => a + i.end - i.start, 0) : 0)}）</div>
+        ${r.warnings.length ? `<div class="divider"></div><div class="small" style="color:var(--red)">${r.warnings.map(w => '⚠ ' + U.esc(w)).join('<br>')}</div>` : ''}`,
+      footer: [
+        { label: '取消' },
+        { label: '应用新安排', cls: 'primary', onClick: (close) => {
+          PB.store.snapshot();
+          const st = PB.store.get();
+          st.plan = { weekOf: r.weekOf, items: r.items, warnings: r.warnings };
+          PB.store.save();
+          close();
+          UI.toast(`已重新安排（保留 ${r.preservedCount} 块）`, r.warnings.length ? 'err' : 'ok', {
+            label: '撤销',
+            onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'dashboard'); },
+          });
+          if (onDone) onDone();
+        } },
+      ],
+    });
+  }
+
+  /* ── 总览页（今日执行） ─────────────────────── */
   function dashboard(root) {
     const s = PB.store.get();
     const todayStr = U.dateStr(U.today());
     root.innerHTML = '';
 
-    // 空状态引导
+    // 空状态引导：先问每日投入，再给三步
     if (!s.courses.length && !s.events.length && !s.goals.length) {
       root.innerHTML = `
         <div class="page-title">欢迎使用拾光规划</div>
         <div class="page-desc">课表只是时间参考——这里帮你算清可用时间、评估目标可行性、生成并解释每周安排。</div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>先告诉我：课外每天大概能投入多久？</h3>
+          <div class="muted small">这决定计划排多满，之后随时可以在「设置」里改。建议留点缓冲，别选极限值。</div>
+          <div class="cap-q">
+            ${[['2', '约 2 小时'], ['4', '约 4 小时'], ['6', '约 6 小时'], ['10', '8 小时以上']].map(([v, l]) => `<button class="btn" data-cap="${v}">${l}</button>`).join('')}
+          </div>
+        </div>
         <div class="card">
           <div class="onboard">
-            <div class="step"><span class="n">1</span><div class="t">导入课表</div><div class="d">到「课表」页导入 ICS 文件、粘贴文本，或手动添加课程。它只用来扣除已占用时间。</div></div>
-            <div class="step"><span class="n">2</span><div class="t">写下目标</div><div class="d">到「目标·任务」用一句话描述（如"12月中旬数学竞赛，想系统备考"），AI 帮你拆成带工时的任务。</div></div>
+            <div class="step"><span class="n">1</span><div class="t">导入课表</div><div class="d">到「课表」页导入教务系统 .xls、ICS 文件、粘贴文本，或手动添加。它只用来扣除已占用时间。</div></div>
+            <div class="step"><span class="n">2</span><div class="t">写下目标</div><div class="d">到「目标·任务」用一句话描述（如"12月中旬数学竞赛"），AI 帮你拆成带工时的任务；手动添加也完全可以。</div></div>
             <div class="step"><span class="n">3</span><div class="t">看分析与计划</div><div class="d">「分析报告」先告诉你时间够不够、怎么取舍，「周计划」给出具体到时段的安排。</div></div>
           </div>
           <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
@@ -136,6 +290,16 @@ PB.views = PB.views || {};
             <button class="btn" id="obTT">去导入课表</button>
           </div>
         </div>`;
+      root.querySelectorAll('[data-cap]').forEach(b => {
+        b.onclick = () => {
+          const st = PB.store.get();
+          st.settings.dailyCapH = +b.dataset.cap;
+          st.settings.onboardCapDone = true;
+          PB.store.save();
+          UI.toast(`已设为每天约 ${b.dataset.cap} 小时，随时可在「设置」调整`, 'ok');
+          dashboard(root);
+        };
+      });
       root.querySelector('#obDemo').onclick = () => { PB.demo.load(); PB.app.nav('dashboard'); };
       root.querySelector('#obTT').onclick = () => PB.app.nav('timetable');
       return;
@@ -146,19 +310,30 @@ PB.views = PB.views || {};
     const planCurrent = s.plan.weekOf === monday;
     const plannedH = planCurrent ? PB.engine.planHours(s.plan) / 60 : 0;
 
+    // 备份提醒
+    const hasData = s.courses.length || s.events.length || s.goals.length || s.tasks.length;
+    const lastB = s.meta.lastBackup;
+    const backupDays = lastB ? U.dayDiff(todayStr, lastB) : null;
+    const needBackup = hasData && (lastB == null || backupDays >= 7);
+
+    const vColor = { over: 'var(--red)', ok: 'var(--green)', warn: 'var(--orange)', empty: 'var(--ink2)', nocap: 'var(--red)' };
     root.innerHTML = `
       <div class="page-title">总览 <span class="muted" style="font-weight:400;font-size:13px">${U.fmtCN(todayStr)}</span></div>
-      <div class="page-desc">先看结论：你的时间账是否平衡，今天该干什么。</div>
+      <div class="page-desc">今天做什么、时间账是否平衡。</div>
+      ${needBackup ? `<div class="banner"><span>💾 数据只保存在这台浏览器里（上次备份：${lastB || '从未'}）。建议定期导出备份文件。</span><button class="btn sm" id="bkBtn">导出备份</button></div>` : ''}
       <div class="stats">
-        <div class="stat"><div class="num">${U.fmtHours(f.cap.studyTotal)}</div><div class="lbl">每周可投入（受每日上限约束）</div></div>
+        <div class="stat"><div class="num">${f.capExplain.studyH}h</div><div class="lbl">每周可投入</div></div>
         <div class="stat"><div class="num">${f.totalReq ? f.totalReq.toFixed(1) + ' h' : '—'}</div><div class="lbl">目标需求（每周）</div></div>
         <div class="stat ${planCurrent ? 'ok' : ''}"><div class="num">${planCurrent ? U.fmtHours(plannedH * 60) : '未生成'}</div><div class="lbl">本周计划已排</div></div>
-        <div class="stat"><div class="num ${f.verdict === 'over' ? '' : ''}" style="color:${f.verdict === 'over' ? 'var(--red)' : f.verdict === 'ok' ? 'var(--green)' : 'var(--orange)'}">${s.goals.length ? f.verdictCN : '—'}</div><div class="lbl">可行性结论</div></div>
+        <div class="stat"><div class="num" style="color:${vColor[f.verdict] || 'var(--ink)'};font-size:${f.verdictCN.length > 4 ? '17px' : '24px'}">${f.verdictCN}</div><div class="lbl">可行性结论</div></div>
       </div>
+      <div class="muted small" style="margin:8px 2px 0">${capExplainHTML(f)}</div>
       <div class="row" style="margin-top:14px">
-        <div class="card grow" style="flex:2 1 420px">
-          <h3>今日时间线 <span class="hint">课程/占用 + 已排任务</span></h3>
-          <div id="todayList"></div>
+        <div class="card grow" style="flex:2 1 460px">
+          <h3>今日执行 <span class="hint">开始 / 完成（记实际用时）/ 顺延</span></h3>
+          <div id="todayRun"></div>
+          <div id="dueToday"></div>
+          <div id="replanRow"></div>
         </div>
         <div class="col" style="flex:1 1 280px">
           <div class="card">
@@ -171,39 +346,27 @@ PB.views = PB.views || {};
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn sm" id="qaGoal">添加目标</button>
               <button class="btn sm" id="qaTT">导入课表</button>
-              <button class="btn sm" id="qaPlan">生成本周计划</button>
+              <button class="btn sm" id="qaPlan">去周计划</button>
             </div>
-            <div class="foot-hint">提示：没配 AI 时所有手动功能照常可用，AI 只负责理解描述和写建议。</div>
+            <div class="foot-hint">没配 AI 也能用全部功能；AI 只负责理解描述和写建议。</div>
           </div>
         </div>
       </div>`;
 
-    // 今日时间线
-    const tl = root.querySelector('#todayList');
-    const lay = PB.engine.dayLayout(todayStr);
-    const items = [
-      ...lay.busy.map(b => ({ start: b.s, end: b.e, label: b.label, type: b.type })),
-      ...(planCurrent ? s.plan.items.filter(it => it.date === todayStr).map(it => {
-        const g = s.goals.find(x => x.id === it.goalId);
-        const t = s.tasks.find(x => x.id === it.taskId);
-        return { start: it.start, end: it.end, label: t ? t.title : `推进《${g ? g.title : '?'}》`, type: 'task', it };
-      }) : []),
-    ].sort((a, b) => a.start - b.start);
-    if (!items.length) tl.innerHTML = '<div class="empty">今天没有课程占用，也没有已排任务。<br>去「周计划」生成，或先导入课表。</div>';
-    else {
-      const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-      for (const it of items) {
-        const row = document.createElement('div');
-        row.className = 'list-item';
-        const running = nowMin >= it.start && nowMin < it.end;
-        row.innerHTML = `
-          <span class="muted" style="width:96px;flex-shrink:0">${U.hmStr(it.start)}~${U.hmStr(it.end)}</span>
-          ${it.type === 'task' ? `<span class="goal-color-dot" style="background:${goalColor(it.it.goalId)}"></span>` : ''}
-          <div class="main"><div class="title" style="font-weight:${it.type === 'task' ? 600 : 500}">${U.esc(it.label)}</div></div>
-          <span class="badge ${it.type === 'course' ? 'gray' : it.type === 'event' ? 'blue' : ''}">${it.type === 'course' ? '课程' : it.type === 'event' ? '占用' : '学习'}</span>
-          ${running ? '<span class="badge red">进行中</span>' : ''}`;
-        tl.appendChild(row);
-      }
+    if (needBackup) root.querySelector('#bkBtn').onclick = exportBackup;
+
+    renderTodayRun(root.querySelector('#todayRun'), todayStr, planCurrent);
+    renderDueToday(root.querySelector('#dueToday'), todayStr, planCurrent);
+
+    // 重新安排入口
+    const rr = root.querySelector('#replanRow');
+    const undoneToday = planCurrent ? s.plan.items.filter(i => i.date === todayStr && !i.done) : [];
+    const overdueTasks = s.tasks.filter(t => t.due && t.due < todayStr && PB.engine.taskRemaining(t) > 0.05);
+    if (planCurrent && (undoneToday.length || overdueTasks.length)) {
+      rr.innerHTML = `<div class="divider" style="margin:10px 0"></div>
+        <button class="btn" id="btnReplan">🔄 把没完成的重新安排${overdueTasks.length ? `（含 ${overdueTasks.length} 个已过期任务）` : ''}</button>
+        <span class="muted small" style="margin-left:8px">已完成和锁定的时段会原样保留，调整前先给你看预览</span>`;
+      rr.querySelector('#btnReplan').onclick = () => replanWeekPreview(() => dashboard(root));
     }
 
     // 风险
@@ -215,6 +378,132 @@ PB.views = PB.views || {};
     root.querySelector('#qaGoal').onclick = () => { PB.app.nav('goals'); };
     root.querySelector('#qaTT').onclick = () => PB.app.nav('timetable');
     root.querySelector('#qaPlan').onclick = () => PB.app.nav('plan');
+  }
+
+  /* 今日执行列表 */
+  function renderTodayRun(container, todayStr, planCurrent) {
+    const s = PB.store.get();
+    const lay = PB.engine.dayLayout(todayStr);
+    const planItems = planCurrent ? s.plan.items.filter(it => it.date === todayStr) : [];
+    const rows = [
+      ...lay.busy.map(b => ({ kind: b.type, start: b.s, end: b.e, label: b.label, item: null })),
+      ...planItems.map(it => {
+        const g = s.goals.find(x => x.id === it.goalId);
+        const t = s.tasks.find(x => x.id === it.taskId);
+        return { kind: 'task', start: it.start, end: it.end, label: t ? t.title : `推进《${g ? g.title : '?'}》`, item: it, t, g };
+      }),
+    ].sort((a, b) => a.start - b.start);
+    if (!rows.length) {
+      container.innerHTML = `<div class="empty">今天还没有安排。${s.goals.length ? '去「周计划」生成。' : '先到「目标·任务」添加目标。'}</div>`;
+      return;
+    }
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    for (const r of rows) {
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      if (r.kind === 'course' || r.kind === 'event') {
+        row.innerHTML = `
+          <span class="muted" style="width:96px;flex-shrink:0">${U.hmStr(r.start)}~${U.hmStr(r.end)}</span>
+          <div class="main"><div class="title" style="font-weight:500">${U.esc(r.label)}</div></div>
+          <span class="badge ${r.kind === 'course' ? 'gray' : 'blue'}">${r.kind === 'course' ? '课程' : '占用'}</span>
+          ${nowMin >= r.start && nowMin < r.end ? '<span class="badge red">进行中</span>' : ''}`;
+      } else {
+        const it = r.item;
+        const h = (it.end - it.start) / 60;
+        const t = r.t;
+        const dueBadge = t && t.due ? `<span class="badge ${t.due < todayStr ? 'red' : t.due === todayStr ? 'orange' : 'blue'}">截止 ${t.due}</span>` : '';
+        if (it.done) {
+          row.innerHTML = `
+            <span class="muted" style="width:96px;flex-shrink:0">${U.hmStr(it.start)}~${U.hmStr(it.end)}</span>
+            <span class="goal-color-dot" style="background:${goalColor(it.goalId)}"></span>
+            <div class="main"><div class="title done" style="text-decoration:line-through;color:var(--ink3);font-weight:600">${U.esc(r.label)}</div>
+            <div class="meta">计划 ${h.toFixed(1)}h${it.actualHours != null ? ` · 实际 ${it.actualHours.toFixed(1)}h` : ''}${r.g ? ' · ' + U.esc(r.g.title) : ''}</div></div>
+            <span class="badge green">已完成</span>`;
+        } else {
+          const runningMin = it.startedAt ? Math.round((Date.now() - it.startedAt) / 60000) : null;
+          row.innerHTML = `
+            <span class="muted" style="width:96px;flex-shrink:0">${U.hmStr(it.start)}~${U.hmStr(it.end)}</span>
+            <span class="goal-color-dot" style="background:${goalColor(it.goalId)}"></span>
+            <div class="main"><div class="title" style="font-weight:600">${U.esc(r.label)}</div>
+            <div class="meta">预计 ${h.toFixed(1)}h${r.g ? ' · ' + U.esc(r.g.title) : ''}${t && t.due ? ' · 截止 ' + t.due : ''}</div></div>
+            ${runningMin != null ? `<span class="run-badge">▶ 已开始 ${runningMin} 分钟</span>` : ''}
+            <div class="action-btns">
+              ${runningMin == null ? '<button class="btn sm" data-act="start">▶ 开始</button>' : ''}
+              <button class="btn sm primary" data-act="done">✓ 完成</button>
+              <button class="btn sm" data-act="defer">⏩ 顺延</button>
+            </div>`;
+          const startBtn = row.querySelector('[data-act="start"]');
+          if (startBtn) startBtn.onclick = () => {
+            const st = PB.store.get();
+            const target = st.plan.items.find(x => x.id === it.id);
+            target.startedAt = Date.now();
+            PB.store.save();
+            UI.toast('已开始计时，完成时会自动填入实际用时', 'ok');
+            dashboard(document.getElementById('mainContent'));
+          };
+          row.querySelector('[data-act="done"]').onclick = () => completeBlockFlow(it, () => dashboard(document.getElementById('mainContent')));
+          row.querySelector('[data-act="defer"]').onclick = () => deferBlockFlow(it, () => dashboard(document.getElementById('mainContent')));
+        }
+      }
+      container.appendChild(row);
+    }
+  }
+
+  /* 今天截止的任务 */
+  function renderDueToday(container, todayStr, planCurrent) {
+    const s = PB.store.get();
+    const inPlan = new Set(planCurrent ? s.plan.items.filter(i => i.date === todayStr && i.taskId).map(i => i.taskId) : []);
+    const due = s.tasks.filter(t => t.due === todayStr && PB.engine.taskRemaining(t) > 0.05 && !inPlan.has(t.id));
+    const overdue = s.tasks.filter(t => t.due && t.due < todayStr && PB.engine.taskRemaining(t) > 0.05);
+    if (!due.length && !overdue.length) return;
+    const all = [...overdue.map(t => ({ t, late: true })), ...due.map(t => ({ t, late: false }))];
+    const box = document.createElement('div');
+    box.innerHTML = '<div class="sec-title">到期/逾期任务</div>';
+    for (const { t, late } of all) {
+      const g = s.goals.find(x => x.id === t.goalId);
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      row.innerHTML = `
+        <span class="goal-color-dot" style="background:${goalColor(t.goalId)}"></span>
+        <div class="main"><div class="title" style="font-weight:600">${U.esc(t.title)}</div>
+        <div class="meta">${g ? U.esc(g.title) + ' · ' : ''}剩余 ${PB.engine.taskRemaining(t).toFixed(1)}h · ${late ? '<span style="color:var(--red)">已过期（' + t.due + '）</span>' : '今天截止'}</div></div>
+        <div class="action-btns">
+          <button class="btn sm primary" data-act="done">✓ 完成</button>
+          <button class="btn sm" data-act="push">改期</button>
+        </div>`;
+      row.querySelector('[data-act="done"]').onclick = () => {
+        PB.store.snapshot();
+        const st = PB.store.get();
+        const tt = st.tasks.find(x => x.id === t.id);
+        const a = PB.engine.taskRemaining(tt);
+        tt.doneHours = tt.estHours;
+        tt.actualHours = (tt.actualHours || 0) + a;
+        PB.store.save();
+        UI.toast(`已完成「${t.title}」，实际记 ${a.toFixed(1)}h`, 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'dashboard'); } });
+        dashboard(document.getElementById('mainContent'));
+      };
+      row.querySelector('[data-act="push"]').onclick = () => {
+        UI.openModal({
+          title: '修改任务截止日',
+          bodyHTML: `<div class="field"><label>新截止日（${U.esc(t.title)}）</label><input id="fDue" type="date" value="${t.due}"></div>`,
+          footer: [
+            { label: '取消' },
+            { label: '保存', cls: 'primary', onClick: (close) => {
+              const nd = UI.fv(document, '#fDue');
+              if (!nd) return;
+              PB.store.snapshot();
+              const st = PB.store.get();
+              st.tasks.find(x => x.id === t.id).due = nd;
+              PB.store.save(); close();
+              UI.toast(`截止日改为 ${nd}，周计划重新生成后会按新日期安排`, 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'dashboard'); } });
+              dashboard(document.getElementById('mainContent'));
+            } },
+          ],
+        });
+      };
+      box.appendChild(row);
+    }
+    container.appendChild(box);
   }
 
   /* ── 课表页 ─────────────────────────────────── */
@@ -362,9 +651,12 @@ PB.views = PB.views || {};
     };
     const clearBtn = root.querySelector('#btnClearTT');
     if (clearBtn) clearBtn.onclick = () => UI.confirmBox('确定清空所有课程和单次占用？此操作不可撤销。', () => {
+      PB.store.snapshot();
       const st = PB.store.get();
       st.courses = []; st.events = [];
-      PB.store.save(); timetable(root); UI.toast('已清空', 'ok');
+      PB.store.save();
+      UI.toast('已清空', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'timetable'); } });
+      timetable(root);
     });
   }
 
@@ -387,9 +679,12 @@ PB.views = PB.views || {};
         </div>`,
       footer: existing ? [
         { label: '删除课程', cls: 'danger', onClick: (close) => { close(); UI.confirmBox(`删除课程「${U.esc(existing.name)}」？`, () => {
+          PB.store.snapshot();
           const st = PB.store.get();
           st.courses = st.courses.filter(x => x.id !== existing.id);
-          PB.store.save(); UI.toast('已删除', 'ok'); if (onDone) onDone();
+          PB.store.save();
+          UI.toast('已删除', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'timetable'); } });
+          if (onDone) onDone();
         }); } },
         { label: '保存', cls: 'primary', onClick: (close) => {
           const name = UI.fv(document, '#fName');
@@ -431,9 +726,12 @@ PB.views = PB.views || {};
         </div>`,
       footer: [
         ...(existing ? [{ label: '删除', cls: 'danger', onClick: (close) => { close(); UI.confirmBox('删除该占用？', () => {
+          PB.store.snapshot();
           const st = PB.store.get();
           st.events = st.events.filter(x => x.id !== existing.id);
-          PB.store.save(); UI.toast('已删除', 'ok'); if (onDone) onDone();
+          PB.store.save();
+          UI.toast('已删除占用', 'ok', { label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'timetable'); } });
+          if (onDone) onDone();
         }); } }] : []),
         { label: '取消' },
         { label: '保存', cls: 'primary', onClick: (close) => {
@@ -454,7 +752,7 @@ PB.views = PB.views || {};
     });
   }
 
-  /* ── 导入预览 ───────────────────────────────── */
+  /* ── 导入预览（含冲突预检） ─────────────────── */
   function importPreview(parsed, onDone) {
     const { recurring, once, skipped, errors } = parsed;
     if (!recurring.length && !once.length) {
@@ -465,6 +763,13 @@ PB.views = PB.views || {};
       });
       return;
     }
+    // 冲突预检：把"将导入 + 已有"放在一起跑冲突检测（不落库）
+    const st0 = PB.store.get();
+    const newCourses = recurring.map(x => ({ id: 'new', name: x.name, day: x.day, start: U.hmStr(x.start), end: U.hmStr(x.end) }));
+    const newEvents = once.map(x => ({ id: 'newE', name: x.name, date: x.date, start: U.hmStr(x.start), end: U.hmStr(x.end) }));
+    const conflicts = PB.engine.findConflicts({ ...st0, courses: st0.courses.concat(newCourses), events: st0.events.concat(newEvents) }).filter(c => c.level === 'warn');
+    const pastEvents = once.filter(x => x.date < U.dateStr(U.today()));
+    const todayStr = U.dateStr(U.today());
     const sample = [
       ...recurring.slice(0, 6).map(x => `周期：${U.DAY_CN[x.day % 7]} ${U.hmStr(x.start)}~${U.hmStr(x.end)} ${U.esc(x.name)}${x.weeks ? '（' + U.esc(x.weeks) + '）' : ''}${x.teacher ? ' · ' + U.esc(x.teacher) : ''}`),
       ...(recurring.length > 6 ? [`……共 ${recurring.length} 条周期课程`] : []),
@@ -477,10 +782,13 @@ PB.views = PB.views || {};
         <p>识别到 <b>${recurring.length}</b> 条周期课程、<b>${once.length}</b> 条单次占用${skipped ? `，跳过 ${skipped} 条（全天事件等）` : ''}。</p>
         <div class="divider"></div>
         ${sample.map(x => `<div class="small muted">${x}</div>`).join('')}
-        ${errors && errors.length ? `<div class="divider"></div><div class="small" style="color:var(--red)">${errors.map(U.esc).join('<br>')}</div>` : ''}`,
+        ${errors && errors.length ? `<div class="divider"></div><div class="small" style="color:var(--red)">${errors.map(U.esc).join('<br>')}</div>` : ''}
+        ${pastEvents.length ? `<div class="divider"></div><div class="small" style="color:var(--orange)">注意：${pastEvents.length} 条单次占用的日期已经过去（${pastEvents.map(x => U.esc(x.name) + ' ' + x.date).join('、')}），导入后不影响未来计划。</div>` : ''}
+        ${conflicts.length ? `<div class="divider"></div><div class="small" style="color:var(--red)"><b>保存前发现 ${conflicts.length} 处时间冲突：</b><br>${conflicts.map(c => U.esc(c.msg)).join('<br>')}<br><span class="muted">若属于"单双周轮换"（同一时段不同周次），可合并周次后导入；否则请调整后再导。</span></div>` : ''}`,
       footer: [
         { label: '取消' },
-        { label: '确认导入', cls: 'primary', onClick: (close) => {
+        { label: conflicts.length ? '仍要导入' : '确认导入', cls: 'primary', onClick: (close) => {
+          PB.store.snapshot();
           const st = PB.store.get();
           const courses = recurring.map(x => ({ id: PB.store.uid(), name: x.name, location: x.location || '', teacher: x.teacher || '', weeks: x.weeks || '', day: x.day, start: U.hmStr(x.start), end: U.hmStr(x.end) }));
           const events = once.map(x => ({ id: PB.store.uid(), name: x.name, date: x.date, start: U.hmStr(x.start), end: U.hmStr(x.end) }));
@@ -491,7 +799,9 @@ PB.views = PB.views || {};
           PB.store.save();
           close();
           const conflicts = PB.engine.findConflicts().filter(c => c.level === 'warn').length;
-          UI.toast(`导入课程 ${d1.added.length} 条、占用 ${d2.added.length} 条${d1.dup + d2.dup ? `，忽略重复 ${d1.dup + d2.dup} 条` : ''}${conflicts ? `；注意：现有 ${conflicts} 处时间冲突` : ''}`, conflicts ? 'err' : 'ok');
+          UI.toast(`导入课程 ${d1.added.length} 条、占用 ${d2.added.length} 条${d1.dup + d2.dup ? `，忽略重复 ${d1.dup + d2.dup} 条` : ''}${conflicts ? `；注意：现有 ${conflicts} 处时间冲突` : ''}`, conflicts ? 'err' : 'ok', {
+            label: '撤销', onClick: () => { PB.store.undo(); PB.app.nav(PB.app.current || 'timetable'); },
+          });
           if (onDone) onDone();
         } },
       ],
@@ -523,4 +833,10 @@ PB.views = PB.views || {};
   PB.views.timetable = timetable;
   PB.views.courseModal = courseModal;
   PB.views.eventModal = eventModal;
+  PB.views.aiGuideModal = aiGuideModal;
+  PB.views.capExplainHTML = capExplainHTML;
+  PB.views.completeBlockFlow = completeBlockFlow;
+  PB.views.deferBlockFlow = deferBlockFlow;
+  PB.views.replanWeekPreview = replanWeekPreview;
+  PB.views.exportBackup = exportBackup;
 })();
