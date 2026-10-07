@@ -1531,7 +1531,7 @@ draw();
 const DEFAULT ={
 banks:[], wrong:[], records:[], fav:[], qstat:{},
 pts:[], qlink:{}, cardstat:{}, cardlog:[], ptlog:[], qlog:[], goal:{},
-settings:{ practiceInstant:true, halfCredit:false, autoBackup:true, needStreak:2, dedupe:true, autoLink:true }
+settings:{ practiceInstant:true, halfCredit:false, autoBackup:true, needStreak:2, dedupe:true, autoLink:true, tagSort:'asc'}
 };
 let DB = JSON.parse(JSON.stringify(DEFAULT));
 let STORE_MODE ='localStorage';
@@ -2502,11 +2502,46 @@ let VB ={ id:null, tag:'', type:''};
 function qTags(q){
 return String(q && q.tag ||'').split(/[,，、]/).map(s => s.trim()).filter(Boolean);
 }
+function cnNum(s){
+const D ={零:0,一:1,二:2,两:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9};
+const U ={十:10,百:100,千:1000};
+if(!/^[零一二两三四五六七八九十百千]+$/.test(s)) return NaN;
+let n = 0, cur = 0;
+for(const ch of s){
+if(ch in D) cur = D[ch];
+else { n +=(cur || 1)* U[ch]; cur = 0;}
+}
+return n + cur;
+}
+function natCmp(a, b){
+const RX =/(\d+|[零一二两三四五六七八九十百千]+|.)/g;
+const A = String(a).match(RX)||[], B = String(b).match(RX)||[];
+for(let i = 0; i < Math.max(A.length, B.length); i++){
+const x = A[i], y = B[i];
+if(x === undefined) return -1;
+if(y === undefined) return 1;
+if(x === y) continue;
+const nx =/^\d+$/.test(x)?+x : cnNum(x);
+const ny =/^\d+$/.test(y)?+y : cnNum(y);
+if(!isNaN(nx)&&!isNaN(ny)) return nx - ny;
+return x < y ?-1 : 1;
+}
+return 0;
+}
 function bankTags(list){
 const qs = Array.isArray(list)? list :(list ? list.questions :[]);
 const m ={};
 qs.forEach(q => qTags(q).forEach(t => m[t]=(m[t]||0)+ 1));
-return Object.keys(m).sort().map(t =>({ tag:t, n:m[t]}));
+const dir =(DB.settings && DB.settings.tagSort)==='desc'?-1 : 1;
+return Object.keys(m).sort((a,b)=> natCmp(a,b)* dir).map(t =>({ tag:t, n:m[t]}));
+}
+function tagDirBtn(){
+return '<button class="btn sm ghost" data-tagdir="1" title="章节按名称里的数字排序，点一下在升序/降序之间切换">'
++(DB.settings.tagSort ==='desc'?'↓ 降序':'↑ 升序')+'</button>';
+}
+function toggleTagSort(){
+DB.settings.tagSort = DB.settings.tagSort ==='desc'?'asc':'desc';
+save();
 }
 function filterQuestions(list, tags, types){
 return list.filter(q =>{
@@ -2530,7 +2565,7 @@ let html ='<div class="card pad"><div class="between"><h3>'+ esc(b.name)+'（'+ 
 +'<button class="btn sm" id="closeBank">收起</button></div>'
 +'<details class="raw" style="margin-top:0"><summary>题库体检报告</summary>'+ reportHtml(bankReport(b.questions))+'</details>'
 + weakTagHtml(b);
-html +='<div class="mt"><label class="f">标签 / 章节筛选</label><div class="tagbar">'
+html +='<div class="mt"><div class="between"><label class="f">标签 / 章节筛选</label>'+ tagDirBtn()+'</div><div class="tagbar">'
 +'<button class="tagpick'+(VB.tag===''?' on':'')+'" data-vtag="">全部<span class="n">'+ b.questions.length +'</span></button>'
 + tags.map(t =>'<button class="tagpick'+(VB.tag===t.tag?' on':'')+'" data-vtag="'+ esc(t.tag)+'">'
 + esc(t.tag)+'<span class="n">'+ t.n +'</span></button>').join('')
@@ -2573,6 +2608,7 @@ $('#bankDetail').innerHTML = html;
 $('#closeBank').onclick =()=>{ $('#bankDetail').innerHTML ='';};
 $$('#bankDetail [data-vtag]').forEach(el => el.onclick =()=>{ VB.tag = el.dataset.vtag; drawBankDetail();});
 $$('#bankDetail [data-vtype]').forEach(el => el.onclick =()=>{ VB.type = el.dataset.vtype; drawBankDetail();});
+$$('#bankDetail [data-tagdir]').forEach(el => el.onclick =()=>{ toggleTagSort(); drawBankDetail();});
 $('#btnBulkTag').onclick =()=>{
 const v =($('#bulkTag').value ||'').trim();
 if(!v){ toast('请输入标签'); return;}
@@ -4509,7 +4545,9 @@ return '<button class="tagpick'+(st.pids.includes(p.id)?' on':'')+'" data-p="'+ 
 +(st.pids.length ?'<div class="row mt">'+ st.pids.map(id =>'<span class="tag blue">'+ esc(ptPath(id,' › '))
 +' <b data-rmpid="'+ id +'" style="cursor:pointer">×</b></span>').join('')+'</div>':'')
 +'</div>'
-+'<div class="field"><label class="f">标签 / 章节（可多选，不选表示全部）</label><div class="tagbar">'
++'<div class="field"><div class="between"><label class="f">标签 / 章节（可多选，不选表示全部）</label>'
++(tags.length > 1 ? tagDirBtn():'')
++'</div><div class="tagbar">'
 +(tags.length ? tags.map(t =>'<button class="tagpick'+(st.tags.includes(t.tag)?' on':'')+'" data-t="'+ esc(t.tag)+'">'
 + esc(t.tag)+'<span class="n">'+ t.n +'</span></button>').join('')
 :'<span class="small muted">还没有标签，可在「题库 → 查看/打标签」里批量打</span>')
@@ -4566,6 +4604,7 @@ $$('#modalBox [data-rmpid]').forEach(el => el.onclick =()=>{
 st.pids = st.pids.filter(x => x !== el.dataset.rmpid);
 draw();
 });
+$$('#modalBox [data-tagdir]').forEach(el => el.onclick =()=>{ toggleTagSort(); draw();});
 $$('#modalBox [data-y]').forEach(el => el.onclick =()=>{
 const y = el.dataset.y, i = st.types.indexOf(y);
 if(i >= 0) st.types.splice(i,1); else st.types.push(y);
