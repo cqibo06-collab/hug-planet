@@ -18,28 +18,45 @@ PB.est = (() => {
   ];
   const UNIT_LABEL = Object.fromEntries(UNITS.map(u => [u.key, u.label]));
 
-  /* 从已完成任务里校准个人速率：返回 {unitKey: 分钟/单位} */
+  /* 从已完成任务里校准个人速率：返回 {unitKey: 分钟/单位}
+   * 优先用实际记录的耗时（actualHours），没有再用计划投入（doneHours） */
   function calibratedPaces() {
     const s = PB.store.get();
     const acc = {}; // unitKey -> {units, minutes}
     for (const t of s.tasks) {
       const q = t.qty;
       if (!q || !q.n || !q.unit || !UNIT_LABEL[q.unit]) continue;
-      const done = t.doneHours || 0;
-      if (done < 0.5) continue;               // 投入太少不可信
+      const real = t.actualHours != null ? t.actualHours : (t.doneHours || 0);
+      if (real < 0.5) continue;               // 投入太少不可信
       const isFinished = PB.engine.taskRemaining(t) <= 0.05;
       if (!isFinished && !t.qtyDone) continue; // 未完成也没报进度，跳过
       const units = isFinished ? q.n : Math.min(q.n, t.qtyDone || 0);
       if (units <= 0) continue;
       if (!acc[q.unit]) acc[q.unit] = { units: 0, minutes: 0 };
       acc[q.unit].units += units;
-      acc[q.unit].minutes += done * 60;
+      acc[q.unit].minutes += real * 60;
     }
     const out = {};
     for (const [k, v] of Object.entries(acc)) {
       if (v.units >= 3) out[k] = Math.round(v.minutes / v.units); // 至少 3 个单位样本才校准
     }
     return out;
+  }
+
+  /* 估算偏差：已完成任务的实际耗时 / 原预估 的比值
+   * 返回 {count, ratio}，样本 <2 时 count=0 */
+  function estimateBias() {
+    const s = PB.store.get();
+    let est = 0, real = 0, count = 0;
+    for (const t of s.tasks) {
+      if ((t.estHours || 0) <= 0) continue;
+      if (PB.engine.taskRemaining(t) > 0.05) continue; // 只统计已完成的
+      const a = t.actualHours != null ? t.actualHours : (t.doneHours || 0);
+      if (a <= 0) continue;
+      est += t.estHours; real += a; count++;
+    }
+    if (count < 2 || est <= 0) return { count: 0, ratio: 1 };
+    return { count, ratio: Math.round(real / est * 100) / 100 };
   }
 
   /* 估算：qty = {n, unit, customMin?}
@@ -79,5 +96,5 @@ PB.est = (() => {
     return UNITS.map(u => `<option value="${u.key}" ${u.key === selected ? 'selected' : ''}>${u.label}</option>`).join('');
   }
 
-  return { UNITS, UNIT_LABEL, calibratedPaces, estimate, sourceLabel, unitOptions };
+  return { UNITS, UNIT_LABEL, calibratedPaces, estimateBias, estimate, sourceLabel, unitOptions };
 })();
