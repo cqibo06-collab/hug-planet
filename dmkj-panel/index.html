@@ -228,7 +228,7 @@ function normItem(a){
 function applyData(arr){
   if(!Array.isArray(arr) || !arr.length || !arr[0] || !arr[0].id) throw new Error("bad json");
   DATA = arr.map(normItem); SNAP_AT = Date.now();
-  ls(K_DATA, JSON.stringify(arr));
+  ls(K_DATA, JSON.stringify(DATA));   // 存归一化后的，刷新读回即可直接渲染
   ls(K_SNAPAT, String(SNAP_AT));
   drawSub(); hideGate(); refresh();
 }
@@ -236,7 +236,7 @@ function loadData(){
   var s = ls(K_DATA);
   if(!s) return false;
   try{
-    DATA = JSON.parse(s);
+    DATA = JSON.parse(s).map(normItem);   // 兜底：兼容早前存过的原始格式条目
     SNAP_AT = +(ls(K_SNAPAT) || Date.now());
     if(!Array.isArray(DATA) || !DATA.length) return false;
     drawSub();
