@@ -1529,7 +1529,7 @@ toast('新增关联 '+ add +' 题'+(del ?'，解除 '+ del +' 题':''));
 draw();
 }
 const DEFAULT ={
-banks:[], wrong:[], records:[], fav:[], qstat:{},
+banks:[], wrong:[], records:[], fav:[], qstat:{}, resumes:[],
 pts:[], qlink:{}, cardstat:{}, cardlog:[], ptlog:[], qlog:[], goal:{},
 settings:{ practiceInstant:true, halfCredit:false, autoBackup:true, needStreak:2, dedupe:true, autoLink:true, tagSort:'asc'}
 };
@@ -2371,19 +2371,26 @@ $('#s4').textContent = today.reduce((s,r)=>s+r.total,0);
 $('#topInfo').textContent = DB.banks.length ?(totalQuestions()+' 题 · 待复习 '+wrongDue().length):'';
 drawHomePoints();
 const rslot = $('#resumeSlot');
-if(hasResume()){
-const r = DB.resume;
-const answered = Object.keys(r.answers||{}).length;
-rslot.innerHTML ='<div class="card pad" style="border:1px solid #c9dcf7;background:var(--primary-soft)">'
-+'<div class="between"><h3 style="margin:0">↩️ 上次刷到第 '+(r.idx+1)+' / '+r.list.length+' 题</h3>'
-+'<span class="small muted">'+esc(r.title)+' · 已答 '+answered+' 题</span></div>'
-+'<div class="row mt"><button class="btn primary" id="btnResumeGo">继续刷（不用从头开始）</button>'
-+'<button class="btn sm ghost" id="btnResumeNo">删掉这份进度</button></div></div>';
-$('#btnResumeGo').onclick = resumeSession;
-$('#btnResumeNo').onclick =()=> confirmBox('删除进度','这份未完成的刷题记录会被清掉，下次只能从头开始。',()=>{
-clearResume(); renderHome(); toast('已删除');
+const resumes = savedResumes();
+rslot.innerHTML = resumes.length ?'<div class="card pad mt" style="border-color:#c9dcf7;background:var(--primary-soft)">'
++'<h3>↩️ 继续刷题 · '+resumes.length+' 份进度</h3>'
++'<p class="small muted">各章节、各次练习独立保存，可随时切换；交卷只清除当前这份进度。</p>'
++'<div class="bank-list" style="max-height:440px;overflow:auto">'
++ resumes.map(r =>'<div class="bank-item" style="flex-wrap:wrap">'
++'<div style="flex:1;min-width:180px"><div class="nm">'+esc(r.title)+'</div>'
++'<div class="meta">'+(r.mode ==='exam'?'考试':'练习')+' · 第 '+(r.idx+1)+' / '+r.list.length+' 题 · 已答 '+Object.keys(r.answers||{}).length+' 题'
++(r.updatedAt ?' · '+esc(fmtDate(r.updatedAt)):'')+'</div></div>'
++'<button class="btn sm primary" data-resume="'+esc(r.id)+'">继续刷</button>'
++'<button class="btn sm ghost" data-remove-resume="'+esc(r.id)+'">删除进度</button></div>').join('')
++'</div></div>':'';
+rslot.querySelectorAll('[data-resume]').forEach(btn =>{
+btn.onclick =()=> resumeSession(btn.dataset.resume);
 });
-} else rslot.innerHTML ='';
+rslot.querySelectorAll('[data-remove-resume]').forEach(btn =>{
+btn.onclick =()=> confirmBox('删除进度','只删除这一份未完成记录，其他章节的进度会保留。',()=>{
+clearResume(btn.dataset.removeResume); renderHome(); toast('已删除');
+});
+});
 const box = $('#homeBanks');
 box.innerHTML = DB.banks.length ? sortedBanks().map(b =>{
 const cnt ={};
@@ -3648,6 +3655,7 @@ let TICK = null;
 function startSession(opt){
 if(!opt.list.length){ toast('没有可做的题目'); return;}
 S ={
+id: uid('session'),
 title: opt.title, mode: opt.mode ||'practice',
 list: opt.list, idx: 0,
 answers:{},
@@ -3668,20 +3676,39 @@ saveResume();
 }
 function saveResume(){
 if(!S) return;
-DB.resume ={ title:S.title, mode:S.mode, list:S.list, idx:S.idx,
+savedResumes();
+if(!S.id) S.id = uid('session');
+const r ={ id:S.id, updatedAt:Date.now(), title:S.title, mode:S.mode, list:S.list, idx:S.idx,
 answers:S.answers, locked:S.locked, results:S.results, conf:S.conf,
 marks:S.marks, favs:S.favs, fromWrong:S.fromWrong, startAt:S.startAt, limit:S.limit };
+const i = DB.resumes.findIndex(x => x.id === S.id);
+if(i < 0) DB.resumes.push(r); else DB.resumes[i]= r;
 save();
 }
-function clearResume(){ if(DB.resume){ delete DB.resume; save();}}
-function hasResume(){
-const r = DB.resume;
-return !!(r && r.list && r.list.length &&
-(r.idx > 0 || Object.keys(r.answers ||{}).length));
+function savedResumes(){
+if(!Array.isArray(DB.resumes)) DB.resumes =[];
+if(DB.resume){
+const old = DB.resume;
+if(Array.isArray(old.list)&& old.list.length){
+old.id = old.id || uid('session');
+old.updatedAt = old.updatedAt || old.startAt || Date.now();
+if(!DB.resumes.some(r => r.id === old.id)) DB.resumes.push(old);
 }
-function resumeSession(){
-const r = DB.resume; if(!r){ toast('没有可恢复的进度'); return;}
-S ={ title:r.title, mode:r.mode, list:r.list, idx:r.idx,
+delete DB.resume;
+save();
+}
+return DB.resumes.filter(r => r && Array.isArray(r.list)&& r.list.length)
+.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+}
+function clearResume(id){
+savedResumes();
+DB.resumes = DB.resumes.filter(r => r.id !== id);
+save();
+}
+function resumeSession(id){
+const r = savedResumes().find(r => r.id === id);
+if(!r){ toast('没有可恢复的进度'); return;}
+S ={ id:r.id, title:r.title, mode:r.mode, list:r.list, idx:r.idx,
 answers:r.answers||{}, locked:r.locked||{}, results:r.results||{}, conf:r.conf||{},
 marks:r.marks||{}, favs:r.favs||{}, fromWrong:!!r.fromWrong,
 startAt:r.startAt||Date.now(), limit:r.limit||0 };
@@ -3690,6 +3717,7 @@ $('#qTitle').textContent = S.title;
 startTimer();
 renderQ();
 renderSheet();
+saveResume();
 }
 function startTimer(){
 clearInterval(TICK);
@@ -3978,7 +4006,7 @@ id: uid('r'), ts: Date.now(), bankName: S.title, mode: S.mode,
 total, right: rightN, half: halfN, wrong: wrongN, pending: pendN, un: unN,
 score, sec, wrongIds: S.list.filter(q =>['wrong','half'].includes((S.results[q.id]||{}).state)).map(q=>q.id)
 });
-delete DB.resume;
+clearResume(S.id);
 save();
 renderResult({ total, rightN, halfN, wrongN, pendN, unN, essayN, score, sec });
 go('result');
